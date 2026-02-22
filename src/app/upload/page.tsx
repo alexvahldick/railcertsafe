@@ -140,64 +140,142 @@ export default function UploadPage() {
     setMsg("Upload received.");
   }
 
+  const shellStyle: React.CSSProperties = {
+    minHeight: "100vh",
+    background: "#f6f7fb", // light app background so inputs are always visible
+    color: "#111",
+    padding: 16,
+  };
+
+  const cardStyle: React.CSSProperties = {
+    maxWidth: 900,
+    margin: "40px auto",
+    padding: 20,
+    background: "#fff",
+    border: "1px solid #e6e8ef",
+    borderRadius: 12,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+  };
+
+  const inputStyle: React.CSSProperties = {
+    padding: 10,
+    border: "1px solid #cfd6e4",
+    borderRadius: 8,
+    background: "#fff",
+    color: "#111",
+    outline: "none",
+  };
+
+  const fileStyle: React.CSSProperties = {
+    padding: 8,
+    border: "1px solid #cfd6e4",
+    borderRadius: 8,
+    background: "#fff",
+    color: "#111",
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: 10,
+    borderRadius: 10,
+    border: "1px solid #1f2937",
+    background: uploading ? "#374151" : "#111827",
+    color: "#fff",
+    cursor: uploading ? "not-allowed" : "pointer",
+  };
+
   if (busy) {
     return (
-      <main style={{ maxWidth: 900, margin: "40px auto", padding: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Upload</h1>
-        <p>Loading...</p>
-        {msg && <p style={{ color: "crimson" }}>{msg}</p>}
+      <main style={shellStyle}>
+        <div style={cardStyle}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Upload</h1>
+          <p style={{ marginTop: 10 }}>Loading...</p>
+          {msg && <p style={{ color: "crimson", marginTop: 10 }}>{msg}</p>}
+        </div>
       </main>
     );
   }
 
   return (
-    <main style={{ maxWidth: 900, margin: "40px auto", padding: 16 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700 }}>Upload document</h1>
-      <p style={{ marginTop: 8 }}>Signed in as: {email ?? "Unknown"}</p>
+    <main style={shellStyle}>
+      <div style={cardStyle}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Upload document</h1>
+        <p style={{ marginTop: 8, color: "#374151" }}>
+          Signed in as: <span style={{ fontWeight: 600, color: "#111" }}>{email ?? "Unknown"}</span>
+        </p>
 
-      <form onSubmit={handleUpload} style={{ marginTop: 16, display: "grid", gap: 12, maxWidth: 520 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          Document type (optional)
-          <input
-            name="docType"
-            value={docType}
-            onChange={(event) => setDocType(event.target.value)}
-            style={{ padding: 10 }}
-          />
-        </label>
+        <form
+          onSubmit={handleUpload}
+          style={{
+            marginTop: 16,
+            display: "grid",
+            gap: 12,
+            maxWidth: 560,
+          }}
+        >
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontWeight: 600 }}>Document type (optional)</span>
+            <input
+              name="docType"
+              value={docType}
+              onChange={(event) => setDocType(event.target.value)}
+              style={inputStyle}
+              placeholder="e.g., ops_test, eval, training_record"
+            />
+          </label>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          File (PDF, JPG, PNG)
-          <input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ padding: 6 }} />
-        </label>
+          <label style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontWeight: 600 }}>File (PDF, JPG, PNG)</span>
+            <input name="file" type="file" accept=".pdf,.jpg,.jpeg,.png" style={fileStyle} />
+            <span style={{ fontSize: 12, color: "#6b7280" }}>
+              Tip: photos of forms work fine — we’ll extract later.
+            </span>
+          </label>
 
-        <button type="submit" disabled={uploading} style={{ padding: 10 }}>
-          {uploading ? "Uploading..." : "Upload"}
-        </button>
-      </form>
+          <button type="submit" disabled={uploading} style={buttonStyle}>
+            {uploading ? "Uploading..." : "Upload"}
+          </button>
+        </form>
 
-      {msg && <p style={{ marginTop: 12, color: msg.includes("received") ? "green" : "crimson" }}>{msg}</p>}
-
-      <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 600 }}>Recent uploads</h2>
-        {uploads.length === 0 ? (
-          <p style={{ marginTop: 8 }}>No uploads yet.</p>
-        ) : (
-          <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-            {uploads.map((upload) => (
-              <div
-                key={upload.id}
-                style={{ border: "1px solid #ddd", borderRadius: 6, padding: 12, display: "grid", gap: 4 }}
-              >
-                <div style={{ fontWeight: 600 }}>{upload.original_filename}</div>
-                <div>Type: {upload.doc_type}</div>
-                <div>Status: {upload.status}</div>
-                <div style={{ color: "#666", fontSize: 12 }}>{new Date(upload.created_at).toLocaleString()}</div>
-              </div>
-            ))}
-          </div>
+        {msg && (
+          <p style={{ marginTop: 12, color: msg.includes("received") ? "green" : "crimson" }}>
+            {msg}
+          </p>
         )}
-      </section>
+
+        <section style={{ marginTop: 24 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Recent uploads</h2>
+
+          {uploads.length === 0 ? (
+            <p style={{ marginTop: 10, color: "#374151" }}>No uploads yet.</p>
+          ) : (
+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+              {uploads.map((upload) => (
+                <div
+                  key={upload.id}
+                  style={{
+                    border: "1px solid #e6e8ef",
+                    borderRadius: 10,
+                    padding: 12,
+                    display: "grid",
+                    gap: 6,
+                    background: "#fff",
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>{upload.original_filename}</div>
+                  <div style={{ color: "#374151" }}>Type: {upload.doc_type}</div>
+                  <div style={{ color: "#374151" }}>Status: {upload.status}</div>
+                  <div style={{ color: "#6b7280", fontSize: 12 }}>
+                    {new Date(upload.created_at).toLocaleString()}
+                  </div>
+                  <div style={{ color: "#6b7280", fontSize: 12 }}>
+                    Path: {upload.storage_path}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

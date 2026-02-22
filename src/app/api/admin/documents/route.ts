@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isAdminEmail } from "@/lib/admin";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -35,11 +35,20 @@ export async function GET(request: Request) {
   const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
 
+  const adminClient = getSupabaseAdmin();
+  if (adminClient.error) {
+    const message =
+      adminClient.error === "Missing SUPABASE_SERVICE_ROLE_KEY"
+        ? "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY"
+        : `Server misconfigured: ${adminClient.error}`;
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
   const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? "";
   const docType = url.searchParams.get("doc_type") ?? "";
 
-  let query = supabaseAdmin
+  let query = adminClient.supabaseAdmin
     .from("documents")
     .select("id, created_at, uploaded_by, doc_type, storage_path, original_filename, status, notes")
     .order("created_at", { ascending: false })
@@ -66,6 +75,15 @@ export async function PATCH(request: Request) {
   const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
 
+  const adminClient = getSupabaseAdmin();
+  if (adminClient.error) {
+    const message =
+      adminClient.error === "Missing SUPABASE_SERVICE_ROLE_KEY"
+        ? "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY"
+        : `Server misconfigured: ${adminClient.error}`;
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
   let payload: { id?: string; status?: string; notes?: string | null } = {};
 
   try {
@@ -78,7 +96,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Missing id or status" }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
+  const allowedStatuses = new Set(["received", "extracting", "needs_review", "processed", "rejected"]);
+  if (!allowedStatuses.has(payload.status)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  const { error } = await adminClient.supabaseAdmin
     .from("documents")
     .update({ status: payload.status, notes: payload.notes ?? null })
     .eq("id", payload.id);
