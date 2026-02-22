@@ -48,7 +48,7 @@ export async function GET(request: Request) {
   const status = url.searchParams.get("status") ?? "";
   const docType = url.searchParams.get("doc_type") ?? "";
 
-  let query = adminClient.supabaseAdmin
+  let query = adminClient.client
     .from("documents")
     .select("id, created_at, uploaded_by, doc_type, storage_path, original_filename, status, notes")
     .order("created_at", { ascending: false })
@@ -101,7 +101,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  const { error } = await adminClient.supabaseAdmin
+  const { error } = await adminClient.client
     .from("documents")
     .update({ status: payload.status, notes: payload.notes ?? null })
     .eq("id", payload.id);

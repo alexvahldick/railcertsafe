@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 
 let cachedAdmin:
-  | { supabaseAdmin: ReturnType<typeof createClient>; error?: undefined }
-  | { supabaseAdmin?: undefined; error: string }
+  | { client: ReturnType<typeof createClient>; error?: undefined }
+  | { client?: undefined; error: string }
   | null = null;
 
 export function getSupabaseAdmin() {
@@ -22,7 +22,7 @@ export function getSupabaseAdmin() {
   }
 
   cachedAdmin = {
-    supabaseAdmin: createClient(supabaseUrl, serviceRoleKey, {
+    client: createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     }),
   };
