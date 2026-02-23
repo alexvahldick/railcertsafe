@@ -1,52 +1,62 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
+import { isAdminEmail } from "@/lib/admin";
+import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 
-function parseAdminEmails(raw: string | undefined) {
-  return (raw ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-function isAdminEmail(email: string | null | undefined) {
-  const admins = parseAdminEmails(process.env.NEXT_PUBLIC_ADMIN_EMAILS);
-  const normalized = (email ?? "").trim().toLowerCase();
-  return normalized.length > 0 && admins.includes(normalized);
-}
+const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
-const ALLOWED = ["pending", "needs_review", "validated", "failed"] as const;
-type ExtractionStatus = (typeof ALLOWED)[number];
+async function requireAdmin(request: Request) {
+  const authHeader = request.headers.get("authorization");
 
-export async function GET(req: Request) {
-  const supabaseUserClient = createRouteHandlerClient({ cookies });
-  const { data: userData, error: userErr } = await supabaseUserClient.auth.getUser();
-  if (userErr) return NextResponse.json({ error: userErr.message }, { status: 401 });
-
-  const email = userData.user?.email ?? null;
-  if (!isAdminEmail(email)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    return NextResponse.json(
-      { error: "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL" },
-      { status: 500 }
-    );
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
 
-  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const token = authHeader.slice("Bearer ".length);
+  const { data, error } = await supabaseAuth.auth.getUser(token);
 
-  const { searchParams } = new URL(req.url);
-  const statusParam = (searchParams.get("status") ?? "").trim();
+  if (error || !data.user) {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
 
-  const statuses: ExtractionStatus[] =
-    statusParam && ALLOWED.includes(statusParam as ExtractionStatus)
-      ? [statusParam as ExtractionStatus]
-      : ["pending", "needs_review"];
+  if (!isAdminEmail(data.user.email)) {
+    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  }
 
-  const { data, error } = await admin
+  return { user: data.user };
+}
+
+const allowedStatuses = new Set(["pending", "needs_review", "validated", "failed"]);
+
+export async function GET(request: Request) {
+  const auth = await requireAdmin(request);
+  if ("error" in auth) return auth.error;
+
+  const adminClient = getSupabaseAdmin();
+  if (adminClient.error) {
+    const message =
+      adminClient.error === "Missing SUPABASE_SERVICE_ROLE_KEY"
+        ? "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY"
+        : `Server misconfigured: ${adminClient.error}`;
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+
+  const url = new URL(request.url);
+  const status = (url.searchParams.get("status") ?? "").trim();
+
+  const statuses = status && status !== "all" ? [status] : ["pending", "needs_review"];
+  for (const s of statuses) {
+    if (!allowedStatuses.has(s)) {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+  }
+
+  const { data, error } = await adminClient.client
     .from("document_extractions")
     .select(
       `
@@ -54,6 +64,7 @@ export async function GET(req: Request) {
       document_id,
       status,
       confidence_score,
+      extracted_text,
       extracted_fields_json,
       created_at,
       updated_at,
@@ -61,11 +72,13 @@ export async function GET(req: Request) {
       validated_at,
       documents:document_id (
         id,
-        original_filename,
-        storage_path,
-        uploaded_by,
         created_at,
-        status
+        uploaded_by,
+        doc_type,
+        storage_path,
+        original_filename,
+        status,
+        notes
       )
     `
     )
@@ -75,5 +88,5 @@ export async function GET(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ rows: data ?? [] });
+  return NextResponse.json({ data: data ?? [] });
 }

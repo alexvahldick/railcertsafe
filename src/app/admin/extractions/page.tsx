@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 type DocInfo = {
   id: string;
@@ -10,6 +11,8 @@ type DocInfo = {
   uploaded_by: string | null;
   created_at: string;
   status: string;
+  doc_type?: string | null;
+  notes?: string | null;
 };
 
 type ExtractionRow = {
@@ -17,6 +20,7 @@ type ExtractionRow = {
   document_id: string;
   status: "pending" | "needs_review" | "validated" | "failed";
   confidence_score: number | null;
+  extracted_text?: string | null;
   extracted_fields_json: any;
   created_at: string;
   updated_at: string;
@@ -35,6 +39,14 @@ function prettyJson(value: any) {
   }
 }
 
+async function getAccessToken() {
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw new Error(error.message);
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Not logged in (missing session token)");
+  return token;
+}
+
 export default function AdminExtractionsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<ExtractionRow[]>([]);
@@ -50,15 +62,22 @@ export default function AdminExtractionsPage() {
   async function load() {
     setBusy(true);
     setMsg(null);
+
     try {
-      const res = await fetch("/api/admin/extractions", { cache: "no-store" });
+      const token = await getAccessToken();
+
+      const res = await fetch("/api/admin/extractions", {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error ?? "Failed to load");
-      setRows(json.rows ?? []);
-      if ((json.rows ?? []).length > 0 && !activeId) {
-        const first = json.rows[0] as ExtractionRow;
-        setActiveId(first.id);
-      }
+
+      const list: ExtractionRow[] = json.data ?? [];
+      setRows(list);
+
+      if (list.length > 0 && !activeId) setActiveId(list[0].id);
     } catch (e: any) {
       setMsg(e?.message ?? "Failed to load");
     } finally {
@@ -79,41 +98,38 @@ export default function AdminExtractionsPage() {
 
   async function save() {
     if (!active) return;
+
     setBusy(true);
     setMsg(null);
 
     let parsed: any;
     try {
       parsed = JSON.parse(editorText);
-    } catch (e: any) {
+    } catch {
       setBusy(false);
       setMsg("JSON is invalid. Fix it before saving.");
       return;
     }
 
     try {
+      const token = await getAccessToken();
+
       const res = await fetch(`/api/admin/extractions/${active.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status,
-          extracted_fields_json: parsed,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status, extracted_fields_json: parsed }),
       });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error ?? "Save failed");
 
-      const updated: ExtractionRow = json.row;
+      const updated: ExtractionRow = json.data;
       setRows((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
 
       setMsg("Saved.");
-      if (status === "validated") {
-        const remaining = rows.filter(
-          (r) => r.id !== active.id && (r.status === "pending" || r.status === "needs_review")
-        );
-        if (remaining.length > 0) setActiveId(remaining[0].id);
-      }
     } catch (e: any) {
       setMsg(e?.message ?? "Save failed");
     } finally {
@@ -125,22 +141,25 @@ export default function AdminExtractionsPage() {
     <main style={{ maxWidth: 1200, margin: "32px auto", padding: 16 }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0 }}>Admin — Extractions</h1>
-          <p style={{ marginTop: 6, color: "#555" }}>
-            Review and validate extracted fields (stub scaffolding; OCR provider comes later).
+          <h1 style={{ fontSize: 24, fontWeight: 800, margin: 0, color: "#111" }}>Admin — Extractions</h1>
+          <p style={{ marginTop: 6, color: "#111", opacity: 0.75 }}>
+            Review and validate extracted fields (scaffolding; OCR provider comes later).
           </p>
         </div>
+
         <div style={{ display: "flex", gap: 8 }}>
           <button
             onClick={() => load()}
             disabled={busy}
-            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white" }}
+            type="button"
+            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", color: "#111" }}
           >
             Refresh
           </button>
           <button
             onClick={() => router.push("/admin/intake")}
-            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white" }}
+            type="button"
+            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white", color: "#111" }}
           >
             Back to Intake
           </button>
@@ -148,31 +167,32 @@ export default function AdminExtractionsPage() {
       </div>
 
       {msg && (
-        <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#fff7ed", border: "1px solid #fed7aa" }}>
+        <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: "#fff7ed", border: "1px solid #fed7aa", color: "#111" }}>
           {msg}
         </div>
       )}
 
       <div style={{ display: "grid", gridTemplateColumns: "420px 1fr", gap: 16, marginTop: 16 }}>
-        <section style={{ border: "1px solid #e5e7eb", borderRadius: 16, background: "white", overflow: "hidden" }}>
+        {/* Left: queue */}
+        <section style={{ border: "1px solid #e5e7eb", borderRadius: 16, background: "white", overflow: "hidden", color: "#111" }}>
           <div style={{ padding: 12, borderBottom: "1px solid #eee" }}>
-            <div style={{ fontWeight: 700 }}>Queue</div>
-            <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-              Showing pending + needs_review (via API default)
-            </div>
+            <div style={{ fontWeight: 800, color: "#111" }}>Queue ({rows.length})</div>
+            <div style={{ fontSize: 12, color: "#111", opacity: 0.65, marginTop: 4 }}>Showing pending + needs_review</div>
           </div>
 
           <div style={{ maxHeight: 640, overflow: "auto" }}>
             {rows.length === 0 ? (
-              <div style={{ padding: 12, color: "#666" }}>{busy ? "Loading..." : "No rows."}</div>
+              <div style={{ padding: 12, color: "#111", opacity: 0.7 }}>{busy ? "Loading..." : "No rows."}</div>
             ) : (
               rows.map((r) => {
                 const isActive = r.id === activeId;
                 const filename = r.documents?.original_filename ?? "(no filename)";
+
                 return (
                   <button
                     key={r.id}
                     onClick={() => setActiveId(r.id)}
+                    type="button"
                     style={{
                       display: "block",
                       width: "100%",
@@ -180,15 +200,16 @@ export default function AdminExtractionsPage() {
                       padding: 12,
                       border: "none",
                       borderBottom: "1px solid #f3f4f6",
-                      background: isActive ? "#f8fafc" : "white",
+                      background: isActive ? "#111827" : "white",
+                      color: isActive ? "white" : "#111",
                       cursor: "pointer",
                     }}
                   >
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>{filename}</div>
-                    <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
+                    <div style={{ fontWeight: 800, fontSize: 13 }}>{filename}</div>
+                    <div style={{ fontSize: 12, marginTop: 4, opacity: isActive ? 0.9 : 0.7 }}>
                       status: <b>{r.status}</b> • created: {new Date(r.created_at).toLocaleString()}
                     </div>
-                    <div style={{ fontSize: 12, color: "#777", marginTop: 4 }}>
+                    <div style={{ fontSize: 12, marginTop: 4, opacity: isActive ? 0.85 : 0.6 }}>
                       doc_id: {r.document_id.slice(0, 8)}…
                     </div>
                   </button>
@@ -198,29 +219,29 @@ export default function AdminExtractionsPage() {
           </div>
         </section>
 
-        <section style={{ border: "1px solid #e5e7eb", borderRadius: 16, background: "white", padding: 16 }}>
+        {/* Right: editor */}
+        <section style={{ border: "2px solid #111", borderRadius: 16, background: "#f8fafc", padding: 16, color: "#111" }}>
           {!active ? (
-            <div style={{ color: "#666" }}>Select an extraction row.</div>
+            <div style={{ color: "#111", fontWeight: 700 }}>Select an extraction row on the left.</div>
           ) : (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 16 }}>
+                  <div style={{ fontWeight: 900, fontSize: 16, color: "#111" }}>
                     {active.documents?.original_filename ?? "Extraction"}
                   </div>
-                  <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-                    Extraction ID: {active.id}
-                    <br />
-                    Document ID: {active.document_id}
+                  <div style={{ fontSize: 12, color: "#111", opacity: 0.8, marginTop: 6 }}>
+                    <div>Extraction ID: {active.id}</div>
+                    <div>Document ID: {active.document_id}</div>
                   </div>
                 </div>
 
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <label style={{ fontSize: 12, color: "#555" }}>Status</label>
+                  <label style={{ fontSize: 12, color: "#111", fontWeight: 700 }}>Status</label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as any)}
-                    style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #ddd" }}
+                    style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #111", background: "white", color: "#111" }}
                     disabled={busy}
                   >
                     {STATUS_OPTIONS.map((s) => (
@@ -233,22 +254,16 @@ export default function AdminExtractionsPage() {
                   <button
                     onClick={save}
                     disabled={busy}
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #111",
-                      background: "#111",
-                      color: "white",
-                      fontWeight: 700,
-                    }}
+                    type="button"
+                    style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "white", fontWeight: 800 }}
                   >
                     Save
                   </button>
                 </div>
               </div>
 
-              <div style={{ marginTop: 12, fontSize: 12, color: "#666" }}>
-                Edit <code>extracted_fields_json</code> (JSONB). Keep this simple for now: placeholder key/value pairs.
+              <div style={{ marginTop: 12, fontSize: 12, color: "#111", opacity: 0.8 }}>
+                Edit <code>extracted_fields_json</code> (JSONB).
               </div>
 
               <textarea
@@ -261,7 +276,9 @@ export default function AdminExtractionsPage() {
                   height: 520,
                   padding: 12,
                   borderRadius: 12,
-                  border: "1px solid #e5e7eb",
+                  border: "1px solid #111",
+                  background: "white",
+                  color: "#111",
                   fontFamily:
                     "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
                   fontSize: 12,
