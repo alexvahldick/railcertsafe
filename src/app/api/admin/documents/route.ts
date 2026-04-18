@@ -1,114 +1,79 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { isAdminEmail } from "@/lib/admin";
-import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireAdminUser } from "@/lib/auth";
+import { DOCUMENT_STATUSES, mapLegacyStatus, type DocumentRecord, type DocumentStatus } from "@/lib/documents";
+import { getSupabaseServiceClient } from "@/lib/supabase/server";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
-
-async function requireAdmin(request: Request) {
-  const authHeader = request.headers.get("authorization");
-
-  if (!authHeader?.startsWith("Bearer ")) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-
-  const token = authHeader.slice("Bearer ".length);
-  const { data, error } = await supabaseAuth.auth.getUser(token);
-
-  if (error || !data.user) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
-  }
-
-  if (!isAdminEmail(data.user.email)) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
-  }
-
-  return { user: data.user };
+function normalizeRecord(record: Record<string, unknown>): DocumentRecord {
+  return {
+    id: String(record.id),
+    created_at: String(record.created_at),
+    updated_at: record.updated_at ? String(record.updated_at) : null,
+    uploaded_by: String(record.uploaded_by),
+    doc_type: String(record.doc_type ?? "unknown"),
+    storage_path: String(record.storage_path),
+    original_filename: String(record.original_filename),
+    status: mapLegacyStatus(String(record.status ?? "received")),
+    notes: typeof record.notes === "string" ? record.notes : null,
+  };
 }
 
 export async function GET(request: Request) {
-  const auth = await requireAdmin(request);
-  if ("error" in auth) return auth.error;
-
-  const adminClient = getSupabaseAdmin();
-  if (adminClient.error) {
-    const message =
-      adminClient.error === "Missing SUPABASE_SERVICE_ROLE_KEY"
-        ? "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY"
-        : `Server misconfigured: ${adminClient.error}`;
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  await requireAdminUser();
 
   const url = new URL(request.url);
-  const status = url.searchParams.get("status") ?? "";
-  const docType = url.searchParams.get("doc_type") ?? "";
+  const statusFilter = url.searchParams.get("status");
+  const supabase = getSupabaseServiceClient();
 
-  let query = adminClient.client
+  const { data, error } = await supabase
     .from("documents")
     .select("id, created_at, uploaded_by, doc_type, storage_path, original_filename, status, notes")
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (status && status !== "all") {
-    query = query.eq("status", status);
-  }
-
-  if (docType) {
-    query = query.eq("doc_type", docType);
-  }
-
-  const { data, error } = await query;
-
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ data });
+  const normalized = (data ?? []).map((record) => normalizeRecord(record as Record<string, unknown>));
+  const filtered =
+    statusFilter && statusFilter !== "all"
+      ? normalized.filter((record) => record.status === statusFilter)
+      : normalized;
+
+  return NextResponse.json({ data: filtered });
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireAdmin(request);
-  if ("error" in auth) return auth.error;
+  await requireAdminUser();
 
-  const adminClient = getSupabaseAdmin();
-  if (adminClient.error) {
-    const message =
-      adminClient.error === "Missing SUPABASE_SERVICE_ROLE_KEY"
-        ? "Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY"
-        : `Server misconfigured: ${adminClient.error}`;
-    return NextResponse.json({ error: message }, { status: 500 });
+  const payload = (await request.json().catch(() => null)) as
+    | { id?: string; status?: DocumentStatus; notes?: string | null }
+    | null;
+
+  if (!payload?.id || !payload.status) {
+    return NextResponse.json({ error: "Missing id or status." }, { status: 400 });
   }
 
-  let payload: { id?: string; status?: string; notes?: string | null } = {};
-
-  try {
-    payload = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  if (!DOCUMENT_STATUSES.includes(payload.status)) {
+    return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
 
-  if (!payload.id || !payload.status) {
-    return NextResponse.json({ error: "Missing id or status" }, { status: 400 });
-  }
+  const supabase = getSupabaseServiceClient();
+  const updatePayload = {
+    status: payload.status,
+    notes: payload.notes ?? null,
+  } as never;
 
-  const allowedStatuses = new Set(["received", "extracting", "needs_review", "processed", "rejected"]);
-  if (!allowedStatuses.has(payload.status)) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-  }
-
-  const { error } = await adminClient.client
+  const { data, error } = await supabase
     .from("documents")
-    .update({ status: payload.status, notes: payload.notes ?? null })
-    .eq("id", payload.id);
+    .update(updatePayload)
+    .eq("id", payload.id)
+    .select("id, created_at, uploaded_by, doc_type, storage_path, original_filename, status, notes")
+    .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ data: normalizeRecord(data as Record<string, unknown>) });
 }

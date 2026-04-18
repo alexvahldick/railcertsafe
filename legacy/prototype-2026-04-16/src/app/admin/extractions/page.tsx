@@ -30,6 +30,8 @@ type ExtractionRow = {
 };
 
 const STATUS_OPTIONS = ["pending", "needs_review", "validated", "failed"] as const;
+const FILTER_OPTIONS = ["default", "all", ...STATUS_OPTIONS] as const;
+type FilterValue = (typeof FILTER_OPTIONS)[number];
 
 function prettyJson(value: any) {
   try {
@@ -47,11 +49,21 @@ async function getAccessToken() {
   return token;
 }
 
+function buildListUrl(filter: FilterValue) {
+  // "default" preserves existing behavior of the API:
+  // no status param => pending + needs_review
+  if (filter === "default") return "/api/admin/extractions";
+  if (filter === "all") return "/api/admin/extractions?status=all";
+  return `/api/admin/extractions?status=${encodeURIComponent(filter)}`;
+}
+
 export default function AdminExtractionsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<ExtractionRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  const [filter, setFilter] = useState<FilterValue>("default");
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const active = useMemo(() => rows.find((r) => r.id === activeId) ?? null, [rows, activeId]);
@@ -59,14 +71,15 @@ export default function AdminExtractionsPage() {
   const [editorText, setEditorText] = useState<string>("{}");
   const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]>("pending");
 
-  async function load() {
+  async function load(opts?: { preserveActive?: boolean }) {
     setBusy(true);
     setMsg(null);
 
     try {
       const token = await getAccessToken();
+      const url = buildListUrl(filter);
 
-      const res = await fetch("/api/admin/extractions", {
+      const res = await fetch(url, {
         cache: "no-store",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -77,7 +90,16 @@ export default function AdminExtractionsPage() {
       const list: ExtractionRow[] = json.data ?? [];
       setRows(list);
 
-      if (list.length > 0 && !activeId) setActiveId(list[0].id);
+      const preserve = opts?.preserveActive ?? true;
+      if (list.length > 0) {
+        if (preserve && activeId && list.some((r) => r.id === activeId)) {
+          // keep current
+        } else {
+          setActiveId(list[0].id);
+        }
+      } else {
+        setActiveId(null);
+      }
     } catch (e: any) {
       setMsg(e?.message ?? "Failed to load");
     } finally {
@@ -90,6 +112,12 @@ export default function AdminExtractionsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reload when filter changes
+  useEffect(() => {
+    load({ preserveActive: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
   useEffect(() => {
     if (!active) return;
     setEditorText(prettyJson(active.extracted_fields_json));
@@ -97,7 +125,10 @@ export default function AdminExtractionsPage() {
   }, [active]);
 
   async function save() {
-    if (!active) return;
+    if (!active) {
+      setMsg("Select an extraction row first.");
+      return;
+    }
 
     setBusy(true);
     setMsg(null);
@@ -129,7 +160,17 @@ export default function AdminExtractionsPage() {
       const updated: ExtractionRow = json.data;
       setRows((prev) => prev.map((r) => (r.id === updated.id ? { ...r, ...updated } : r)));
 
-      setMsg("Saved.");
+      // If you validated and you're in default view, it will disappear from the list.
+      // Reload to keep the left panel consistent.
+      if (filter === "default" && status === "validated") {
+        await load({ preserveActive: false });
+      }
+
+      if (json?.parent_sync?.attempted && json?.parent_sync?.ok === false) {
+        setMsg(`Saved, but parent document status sync failed: ${json.parent_sync.error ?? "unknown error"}`);
+      } else {
+        setMsg("Saved.");
+      }
     } catch (e: any) {
       setMsg(e?.message ?? "Save failed");
     } finally {
@@ -147,7 +188,23 @@ export default function AdminExtractionsPage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <label style={{ fontSize: 12, fontWeight: 800, color: "#111" }}>Filter</label>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value as FilterValue)}
+            disabled={busy}
+            style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #111", background: "white", color: "#111" }}
+          >
+            <option value="default">default (pending + needs_review)</option>
+            <option value="all">all</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+
           <button
             onClick={() => load()}
             disabled={busy}
@@ -177,7 +234,9 @@ export default function AdminExtractionsPage() {
         <section style={{ border: "1px solid #e5e7eb", borderRadius: 16, background: "white", overflow: "hidden", color: "#111" }}>
           <div style={{ padding: 12, borderBottom: "1px solid #eee" }}>
             <div style={{ fontWeight: 800, color: "#111" }}>Queue ({rows.length})</div>
-            <div style={{ fontSize: 12, color: "#111", opacity: 0.65, marginTop: 4 }}>Showing pending + needs_review</div>
+            <div style={{ fontSize: 12, color: "#111", opacity: 0.65, marginTop: 4 }}>
+              {filter === "default" ? "Showing pending + needs_review" : `Showing: ${filter}`}
+            </div>
           </div>
 
           <div style={{ maxHeight: 640, overflow: "auto" }}>

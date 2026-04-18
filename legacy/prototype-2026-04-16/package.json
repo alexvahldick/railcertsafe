@@ -7,10 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "check:env": "node scripts/check-env.mjs",
-    "check:supabase": "node scripts/check-supabase.mjs",
-    "verify": "npm run check:env && npm run check:supabase && npm run build && npm run typecheck"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",

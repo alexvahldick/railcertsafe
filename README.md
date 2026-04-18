@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RailCertSafe
 
-## Getting Started
+RailCertSafe is being rebuilt as a stable Next.js + Supabase application for railroad compliance, certification, and operational testing workflows.
 
-First, run the development server:
+The current active slice is `Operations Testing` for Part 217.9, built around:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- public landing page
+- signup and login
+- protected dashboard
+- first-run master-admin bootstrap flow
+- employee and certification-class maintenance
+- paper-mirroring operational testing entry
+- draft/save/submit workflow
+- immutable certified event records
+- correction-request and review queue foundations
+- printable full-form event detail view
+
+## Current routes
+
+- `/`
+- `/login`
+- `/signup`
+- `/dashboard`
+- `/employees`
+- `/testing/new`
+- `/testing/[id]`
+- `/admin/intake`
+
+## Required environment variables
+
+Create `.env.local` with:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+ADMIN_EMAILS=admin@example.com,ops@example.com
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Notes:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `ADMIN_EMAILS` is preferred for server-only admin gating.
+- `NEXT_PUBLIC_ADMIN_EMAILS` is still read as a fallback for compatibility with the older prototype.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Local development
 
-## Learn More
+```bash
+npm install
+npm run verify
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open `http://localhost:3000`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+`npm run verify` checks required env vars, verifies the configured Supabase project state, builds the app, and runs TypeScript validation.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Supabase setup
 
-## Deploy on Vercel
+Run the SQL files in order:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. `legacy/prototype-2026-04-16/sql/001_documents.sql` if the project is brand new and has no document table yet.
+2. `sql/002_vertical_slice_restart.sql` to normalize the schema for the rebuilt app.
+3. `sql/003_operations_testing_phase1.sql` to add the operations testing foundation.
+4. `sql/004_operations_testing_amendments.sql` to enable admin-applied amendments on certified testing records.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The current operations testing slice expects:
+
+- the existing `documents` bucket/table from the earlier slice to remain available
+- the operations testing tables from `sql/003_operations_testing_phase1.sql`
+- the amendment table from `sql/004_operations_testing_amendments.sql` if you want correction requests to be converted into approved effective-record amendments in the UI
+- a master administrator email present in `ADMIN_EMAILS` or `NEXT_PUBLIC_ADMIN_EMAILS` for first-run bootstrap
+
+After the SQL is applied:
+
+1. sign in as the master administrator
+2. open `/dashboard`
+3. initialize the first client workspace
+4. maintain employees/certification classes under `/employees`
+5. enter testing events under `/testing/new`
+
+After the SQL is applied, verify the remote project with:
+
+```bash
+npm run check:supabase
+```
+
+If you later configure Supabase CLI auth on this machine, you can also automate remote migrations through the CLI. Until then, `npm run check:supabase` gives a direct pass/fail check against the configured project using the service-role key in `.env.local`.
+
+## Legacy reference
+
+The previous implementation is preserved at:
+
+- `legacy/prototype-2026-04-16/src`
+- `legacy/prototype-2026-04-16/sql`
+
+That snapshot is reference material only. The active app now lives under `src`.

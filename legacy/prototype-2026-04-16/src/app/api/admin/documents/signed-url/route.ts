@@ -31,9 +31,7 @@ async function requireAdmin(request: Request) {
   return { user: data.user };
 }
 
-const allowedStatuses = new Set(["pending", "needs_review", "validated", "failed"]);
-
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   const auth = await requireAdmin(request);
   if ("error" in auth) return auth.error;
 
@@ -46,47 +44,22 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  const url = new URL(request.url);
-  const status = (url.searchParams.get("status") ?? "").trim();
-
-  const statuses = status && status !== "all" ? [status] : ["pending", "needs_review"];
-  for (const s of statuses) {
-    if (!allowedStatuses.has(s)) {
-      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-    }
+  let payload: { path?: string } = {};
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { data, error } = await adminClient.client
-    .from("document_extractions")
-    .select(
-      `
-      id,
-      document_id,
-      status,
-      confidence_score,
-      extracted_text,
-      extracted_fields_json,
-      created_at,
-      updated_at,
-      validated_by,
-      validated_at,
-      documents:document_id (
-        id,
-        created_at,
-        uploaded_by,
-        doc_type,
-        storage_path,
-        original_filename,
-        status,
-        notes
-      )
-    `
-    )
-    .in("status", statuses)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  if (!payload.path) {
+    return NextResponse.json({ error: "Missing path" }, { status: 400 });
+  }
+
+  const { data, error } = await adminClient.client.storage
+    .from("documents")
+    .createSignedUrl(payload.path, 60 * 10); // 10 minutes
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ data: data ?? [] });
+  return NextResponse.json({ url: data.signedUrl });
 }
