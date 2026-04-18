@@ -40,7 +40,7 @@ const required = [
   "SUPABASE_SERVICE_ROLE_KEY",
 ];
 
-const optional = ["ADMIN_EMAILS", "NEXT_PUBLIC_ADMIN_EMAILS"];
+const optional = ["ADMIN_EMAILS"];
 
 let hasError = false;
 
@@ -59,7 +59,7 @@ for (const name of required) {
 const configuredOptional = optional.filter((name) => process.env[name]?.trim());
 
 if (configuredOptional.length === 0) {
-  console.warn("warn: neither ADMIN_EMAILS nor NEXT_PUBLIC_ADMIN_EMAILS is set");
+  console.warn("warn: ADMIN_EMAILS is not set");
 } else {
   console.log(`ok: admin email source = ${configuredOptional.join(", ")}`);
 }

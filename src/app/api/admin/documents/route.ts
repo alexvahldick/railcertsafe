@@ -3,6 +3,10 @@ import { requireAdminUser } from "@/lib/auth";
 import { DOCUMENT_STATUSES, mapLegacyStatus, type DocumentRecord, type DocumentStatus } from "@/lib/documents";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 
+const responseHeaders = {
+  "Cache-Control": "no-store",
+};
+
 function normalizeRecord(record: Record<string, unknown>): DocumentRecord {
   return {
     id: String(record.id),
@@ -31,7 +35,7 @@ export async function GET(request: Request) {
     .limit(100);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: responseHeaders });
   }
 
   const normalized = (data ?? []).map((record) => normalizeRecord(record as Record<string, unknown>));
@@ -40,7 +44,7 @@ export async function GET(request: Request) {
       ? normalized.filter((record) => record.status === statusFilter)
       : normalized;
 
-  return NextResponse.json({ data: filtered });
+  return NextResponse.json({ data: filtered }, { headers: responseHeaders });
 }
 
 export async function PATCH(request: Request) {
@@ -51,11 +55,11 @@ export async function PATCH(request: Request) {
     | null;
 
   if (!payload?.id || !payload.status) {
-    return NextResponse.json({ error: "Missing id or status." }, { status: 400 });
+    return NextResponse.json({ error: "Missing id or status." }, { status: 400, headers: responseHeaders });
   }
 
   if (!DOCUMENT_STATUSES.includes(payload.status)) {
-    return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid status." }, { status: 400, headers: responseHeaders });
   }
 
   const supabase = getSupabaseServiceClient();
@@ -72,8 +76,8 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: responseHeaders });
   }
 
-  return NextResponse.json({ data: normalizeRecord(data as Record<string, unknown>) });
+  return NextResponse.json({ data: normalizeRecord(data as Record<string, unknown>) }, { headers: responseHeaders });
 }

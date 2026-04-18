@@ -16,6 +16,68 @@ type EventRecord = Record<string, unknown> & {
   currentNotificationStatus: string;
 };
 
+async function assertRecordBelongsToClient(
+  table: string,
+  id: string | undefined,
+  clientId: string,
+  options?: { allowNull?: boolean },
+) {
+  if (!id) {
+    if (options?.allowNull) {
+      return;
+    }
+    throw new Error(`Missing required ${table} identifier.`);
+  }
+
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from(table)
+    .select("id")
+    .eq("id", id)
+    .eq("client_id", clientId)
+    .maybeSingle();
+  expectSuccess(error);
+
+  if (!data) {
+    throw new Error(`Invalid ${table} selection for the active client.`);
+  }
+}
+
+async function assertEventBelongsToClient(eventId: string, clientId: string) {
+  const supabase = getSupabaseServiceClient();
+  const { data, error } = await supabase
+    .from("testing_events")
+    .select("id")
+    .eq("id", eventId)
+    .eq("client_id", clientId)
+    .maybeSingle();
+  expectSuccess(error);
+
+  if (!data) {
+    throw new Error("Testing event does not belong to the active client.");
+  }
+}
+
+async function assertEmployeeBelongsToClient(employeeId: string, clientId: string) {
+  await assertRecordBelongsToClient("employees", employeeId, clientId);
+}
+
+async function assertLocationBelongsToClient(locationId: string | undefined, clientId: string) {
+  await assertRecordBelongsToClient("client_locations", locationId, clientId, { allowNull: true });
+}
+
+async function assertManagerBelongsToClient(managerId: string | undefined, clientId: string) {
+  await assertRecordBelongsToClient("client_test_managers", managerId, clientId, { allowNull: true });
+}
+
+async function assertLookupBelongsToClient(lookupId: string | undefined, clientId: string) {
+  await assertRecordBelongsToClient("client_lookup_values", lookupId, clientId, { allowNull: true });
+}
+
+async function assertEnabledTestBelongsToClient(enabledTestId: string, clientId: string) {
+  await assertRecordBelongsToClient("client_enabled_tests", enabledTestId, clientId);
+}
+
 export async function ensureMasterTestCatalogSeeded() {
   const supabase = getSupabaseServiceClient();
   const { count, error } = await supabase
@@ -266,6 +328,11 @@ export async function upsertEmployee(input: {
   }[];
 }) {
   const supabase = getSupabaseServiceClient();
+
+  if (input.employeeId) {
+    await assertEmployeeBelongsToClient(input.employeeId, input.clientId);
+  }
+
   const employeePayload = {
     client_id: input.clientId,
     employee_number: input.employeeNumber.trim(),
@@ -371,6 +438,25 @@ export async function createOrUpdateTestingEvent(input: {
   }[];
 }) {
   const supabase = getSupabaseServiceClient();
+  await assertEmployeeBelongsToClient(input.employeeId, input.clientId);
+  await Promise.all([
+    assertManagerBelongsToClient(input.manager1Id, input.clientId),
+    assertManagerBelongsToClient(input.manager2Id, input.clientId),
+    assertLocationBelongsToClient(input.locationId, input.clientId),
+    assertLookupBelongsToClient(input.methodLookupId, input.clientId),
+    assertLookupBelongsToClient(input.observationTypeLookupId, input.clientId),
+    assertLookupBelongsToClient(input.dutyLookupId, input.clientId),
+    assertLookupBelongsToClient(input.notificationMethodLookupId, input.clientId),
+    ...input.rows.map((row) => assertEnabledTestBelongsToClient(row.clientEnabledTestId, input.clientId)),
+    ...input.rows
+      .filter((row) => Boolean(row.actionLookupId))
+      .map((row) => assertLookupBelongsToClient(row.actionLookupId, input.clientId)),
+  ]);
+
+  if (input.eventId) {
+    await assertEventBelongsToClient(input.eventId, input.clientId);
+  }
+
   const payload = {
     client_id: input.clientId,
     created_by: input.userId,
@@ -590,6 +676,7 @@ export async function submitTestingEvent(input: {
   userId: string;
 }) {
   const supabase = getSupabaseServiceClient();
+  await assertEventBelongsToClient(input.eventId, input.clientId);
   const settings = await getClientSettings(input.clientId);
   const detail = await getTestingEventDetail(input.clientId, input.eventId);
 
@@ -648,10 +735,12 @@ export async function submitTestingEvent(input: {
 
 export async function createCorrectionRequest(input: {
   eventId: string;
+  clientId: string;
   userId: string;
   reason: string;
 }) {
   const supabase = getSupabaseServiceClient();
+  await assertEventBelongsToClient(input.eventId, input.clientId);
   const { error: correctionError } = await supabase.from("event_corrections").insert({
     event_id: input.eventId,
     requested_by: input.userId,
@@ -670,6 +759,7 @@ export async function createCorrectionRequest(input: {
 
 export async function applyEventAmendment(input: {
   eventId: string;
+  clientId: string;
   userId: string;
   correctionId?: string;
   reason: string;
@@ -678,6 +768,22 @@ export async function applyEventAmendment(input: {
   rowPatches: Record<string, Record<string, unknown>>;
 }) {
   const supabase = getSupabaseServiceClient();
+  await assertEventBelongsToClient(input.eventId, input.clientId);
+  await Promise.all([
+    input.eventPatch.employee_id ? assertEmployeeBelongsToClient(String(input.eventPatch.employee_id), input.clientId) : Promise.resolve(),
+    input.eventPatch.manager_1_id ? assertManagerBelongsToClient(String(input.eventPatch.manager_1_id), input.clientId) : Promise.resolve(),
+    input.eventPatch.manager_2_id ? assertManagerBelongsToClient(String(input.eventPatch.manager_2_id), input.clientId) : Promise.resolve(),
+    input.eventPatch.location_id ? assertLocationBelongsToClient(String(input.eventPatch.location_id), input.clientId) : Promise.resolve(),
+    input.eventPatch.method_lookup_id ? assertLookupBelongsToClient(String(input.eventPatch.method_lookup_id), input.clientId) : Promise.resolve(),
+    input.eventPatch.observation_type_lookup_id ? assertLookupBelongsToClient(String(input.eventPatch.observation_type_lookup_id), input.clientId) : Promise.resolve(),
+    input.eventPatch.duty_lookup_id ? assertLookupBelongsToClient(String(input.eventPatch.duty_lookup_id), input.clientId) : Promise.resolve(),
+    input.eventPatch.notification_method_lookup_id ? assertLookupBelongsToClient(String(input.eventPatch.notification_method_lookup_id), input.clientId) : Promise.resolve(),
+    ...Object.entries(input.rowPatches).flatMap(([enabledTestId, patch]) => [
+      assertEnabledTestBelongsToClient(enabledTestId, input.clientId),
+      patch.action_lookup_id ? assertLookupBelongsToClient(String(patch.action_lookup_id), input.clientId) : Promise.resolve(),
+    ]),
+  ]);
+
   const amendmentPayload = {
     eventPatch: input.eventPatch,
     rowPatches: input.rowPatches,
@@ -724,11 +830,13 @@ export async function applyEventAmendment(input: {
 
 export async function addNotificationDisposition(input: {
   eventId: string;
+  clientId: string;
   userId: string;
   methodLabel: string;
   notes?: string;
 }) {
   const supabase = getSupabaseServiceClient();
+  await assertEventBelongsToClient(input.eventId, input.clientId);
   const { error } = await supabase.from("event_dispositions").insert({
     event_id: input.eventId,
     disposition_type: "notification",

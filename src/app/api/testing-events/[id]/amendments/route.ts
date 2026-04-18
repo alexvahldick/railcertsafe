@@ -35,6 +35,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     await applyEventAmendment({
       eventId: id,
+      clientId: context.activeClient.clientId,
       userId: user.id,
       correctionId: payload?.correctionId,
       reason,

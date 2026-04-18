@@ -28,6 +28,8 @@ export const ACCEPTED_UPLOAD_TYPES = [
   "image/png",
 ] as const;
 
+export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
 export function sanitizeFilename(filename: string) {
   const trimmed = filename.trim();
   const safe = trimmed.replace(/[^a-zA-Z0-9._-]+/g, "_");

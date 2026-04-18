@@ -22,7 +22,7 @@ export function getServiceRoleKey() {
 }
 
 export function getAdminEmails() {
-  const raw = process.env.ADMIN_EMAILS ?? process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "";
+  const raw = process.env.ADMIN_EMAILS ?? "";
 
   return new Set(
     raw

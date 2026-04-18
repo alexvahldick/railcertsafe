@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { loadAppContext } from "@/lib/app-context";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const context = await loadAppContext();
@@ -25,6 +26,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <Link className="button-ghost" href="/testing/new">Submit New Testing</Link>
             <Link className="button-ghost" href="/employees">Employees</Link>
             {admin ? <Link className="button-ghost" href="/admin/intake">Review Queue</Link> : null}
+            <SignOutButton />
           </div>
         </nav>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ACCEPTED_UPLOAD_TYPES,
   DOCUMENT_BUCKET,
+  MAX_UPLOAD_BYTES,
   buildStoragePath,
   type DocumentRecord,
 } from "@/lib/documents";
@@ -92,6 +93,12 @@ export function UploadWorkspace({ userId, userEmail }: Props) {
     if (!ACCEPTED_UPLOAD_TYPES.includes(file.type as (typeof ACCEPTED_UPLOAD_TYPES)[number])) {
       setUploading(false);
       setMessage({ tone: "error", text: "Only PDF, JPG, and PNG files are supported in this first slice." });
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setUploading(false);
+      setMessage({ tone: "error", text: "Files must be 15 MB or smaller." });
       return;
     }
 

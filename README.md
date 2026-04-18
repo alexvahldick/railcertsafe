@@ -39,8 +39,7 @@ ADMIN_EMAILS=admin@example.com,ops@example.com
 
 Notes:
 
-- `ADMIN_EMAILS` is preferred for server-only admin gating.
-- `NEXT_PUBLIC_ADMIN_EMAILS` is still read as a fallback for compatibility with the older prototype.
+- `ADMIN_EMAILS` is required for server-only admin gating.
 
 ## Local development
 
@@ -62,13 +61,15 @@ Run the SQL files in order:
 2. `sql/002_vertical_slice_restart.sql` to normalize the schema for the rebuilt app.
 3. `sql/003_operations_testing_phase1.sql` to add the operations testing foundation.
 4. `sql/004_operations_testing_amendments.sql` to enable admin-applied amendments on certified testing records.
+5. `sql/005_operations_testing_rls.sql` to add read-scoped RLS policies for the operations-testing tables.
 
 The current operations testing slice expects:
 
 - the existing `documents` bucket/table from the earlier slice to remain available
 - the operations testing tables from `sql/003_operations_testing_phase1.sql`
 - the amendment table from `sql/004_operations_testing_amendments.sql` if you want correction requests to be converted into approved effective-record amendments in the UI
-- a master administrator email present in `ADMIN_EMAILS` or `NEXT_PUBLIC_ADMIN_EMAILS` for first-run bootstrap
+- the read-scoped RLS policies from `sql/005_operations_testing_rls.sql` for database-enforced member visibility on operations data
+- a master administrator email present in `ADMIN_EMAILS` for first-run bootstrap
 
 After the SQL is applied:
 

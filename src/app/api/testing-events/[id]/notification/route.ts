@@ -27,6 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     await addNotificationDisposition({
       eventId: id,
+      clientId: context.activeClient.clientId,
       userId: user.id,
       methodLabel,
       notes: payload?.notes,
