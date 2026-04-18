@@ -75,6 +75,7 @@ export function TestingEventDetail({
   const [notificationBusy, setNotificationBusy] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   const [notificationMethodId, setNotificationMethodId] = useState(String(event.notification_method_lookup_id ?? ""));
+  const [showCertifiedCopy, setShowCertifiedCopy] = useState(!canApplyAmendments);
 
   const enabledTestsById = ((event.enabledTestsById as Record<string, EnabledTest>) ?? {});
   const failureActions = lookups.filter((candidate) => candidate.lookup_type === "failure_action");
@@ -308,71 +309,32 @@ export function TestingEventDetail({
   return (
     <div style={{ display: "grid", gap: "1rem" }}>
       <section className="panel" style={{ padding: "1.5rem" }}>
-        <div className="eyebrow">Certified Record</div>
-        <h1 className="title-lg">{String(event.control_number)}</h1>
-        <p className="text-muted" style={{ margin: "0.75rem 0 0" }}>
-          Status: <strong>{String(event.status).replace(/_/g, " ")}</strong>
-        </p>
-      </section>
-
-      <section className="panel form-shell">
-        <div className="paper-title">OPERATIONAL TESTING (217.9 PROGRAM)</div>
-        <div className="paper-grid">
-          <div className="field-label"><span>Date</span><div className="print-field">{String(event.event_date)}</div></div>
-          <div className="field-label"><span>Time</span><div className="print-field">{String(event.event_time ?? "")}</div></div>
-          <div className="field-label paper-span-full"><span>Location</span><div className="print-field">{location?.name ?? ""}</div></div>
-          <div className="field-label"><span>Sub-location</span><div className="print-field">{String(event.sub_location ?? "")}</div></div>
-          <div className="field-label"><span>Engine #</span><div className="print-field">{String(event.engine_number ?? "")}</div></div>
-          <div className="field-label"><span>Job ID</span><div className="print-field">{String(event.job_id ?? "")}</div></div>
-          <div className="field-label"><span>Test Mgr 1</span><div className="print-field">{manager1?.display_name ?? ""}</div></div>
-          <div className="field-label"><span>Test Mgr 2</span><div className="print-field">{manager2?.display_name ?? ""}</div></div>
-          <div className="field-label paper-span-full"><span>Conditions</span><div className="print-field">{((event.conditions as string[]) ?? []).join(", ")}</div></div>
-          <div className="field-label paper-span-full"><span>Employee</span><div className="print-field">{employee ? `${employee.last_name}, ${employee.first_name}` : ""}</div></div>
-          <div className="field-label"><span>Emp ID</span><div className="print-field">{employee?.employee_number ?? ""}</div></div>
-          <div className="field-label"><span>Notified</span><div className="print-field">{currentNotificationStatus}</div></div>
-          <div className="field-label"><span>Notification Method</span><div className="print-field">{notificationMethod?.label ?? ""}</div></div>
-        </div>
-      </section>
-
-      <section className="panel" style={{ padding: "1rem" }}>
-        <div className="eyebrow">Task Table</div>
-        <div style={{ overflowX: "auto", marginTop: "0.8rem" }}>
-          <table className="data-table form-table">
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Test #</th>
-                <th>Applicable For</th>
-                <th>Pass-Fail</th>
-                <th>Action Taken</th>
-                <th>Comments</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.values(enabledTestsById).map((test) => {
-                const row = ((event.rows as EventRow[]) ?? []).find((candidate) => String(candidate.client_enabled_test_id) === String(test.id));
-                const qualifiesLabel = test.qualifies_engineer_check_ride
-                  ? "Engineer Annual / Check Ride"
-                  : test.qualifies_engineer_annual
-                    ? "Engineer Annual"
-                    : test.qualifies_conductor_annual
-                      ? "Conductor Annual"
-                      : null;
-                const actionLabel = lookups.find((candidate) => candidate.id === String(row?.action_lookup_id ?? ""))?.label ?? "";
-
-                return (
-                  <tr key={String(test.id)}>
-                    <td><div style={{ fontWeight: 700 }}>{String(test.task_name)}</div>{qualifiesLabel ? <div className="qualifying-flag">{qualifiesLabel}</div> : null}</td>
-                    <td>{String(test.test_number)}</td>
-                    <td>{String(test.applicability_label)}</td>
-                    <td>{String(row?.result ?? "")}</td>
-                    <td>{actionLabel}</td>
-                    <td>{String(row?.comments ?? "")}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="event-header-row">
+          <div>
+            <div className="eyebrow">Certified Record</div>
+            <h1 className="title-lg">{String(event.control_number)}</h1>
+            <p className="text-muted" style={{ margin: "0.75rem 0 0" }}>
+              Status: <strong>{String(event.status).replace(/_/g, " ")}</strong>
+            </p>
+          </div>
+          <div className="event-meta-grid">
+            <div className="event-meta-card">
+              <div className="event-meta-label">Employee</div>
+              <div className="event-meta-value">{employee ? `${employee.last_name}, ${employee.first_name}` : ""}</div>
+            </div>
+            <div className="event-meta-card">
+              <div className="event-meta-label">Date</div>
+              <div className="event-meta-value">{String(event.event_date)}</div>
+            </div>
+            <div className="event-meta-card">
+              <div className="event-meta-label">Notification</div>
+              <div className="event-meta-value">{currentNotificationStatus}</div>
+            </div>
+            <div className="event-meta-card">
+              <div className="event-meta-label">Rows</div>
+              <div className="event-meta-value">{((event.rows as EventRow[]) ?? []).filter((row) => Boolean(row.result)).length}</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -498,6 +460,82 @@ export function TestingEventDetail({
           {amendmentMessage ? <div className="message message-error">{amendmentMessage}</div> : null}
         </section>
       ) : null}
+
+      <section className="panel" style={{ padding: "1rem", display: "grid", gap: "0.9rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem", alignItems: "center" }}>
+          <div className="eyebrow">Certified Copy</div>
+          <button className="button-ghost" onClick={() => setShowCertifiedCopy((current) => !current)} type="button">
+            {showCertifiedCopy ? "Hide Certified Copy" : "Show Certified Copy"}
+          </button>
+        </div>
+
+        {showCertifiedCopy ? (
+          <div style={{ display: "grid", gap: "1rem" }}>
+            <section className="panel form-shell">
+              <div className="paper-title">OPERATIONAL TESTING (217.9 PROGRAM)</div>
+              <div className="paper-grid">
+                <div className="field-label"><span>Date</span><div className="print-field">{String(event.event_date)}</div></div>
+                <div className="field-label"><span>Time</span><div className="print-field">{String(event.event_time ?? "")}</div></div>
+                <div className="field-label paper-span-full"><span>Location</span><div className="print-field">{location?.name ?? ""}</div></div>
+                <div className="field-label"><span>Sub-location</span><div className="print-field">{String(event.sub_location ?? "")}</div></div>
+                <div className="field-label"><span>Engine #</span><div className="print-field">{String(event.engine_number ?? "")}</div></div>
+                <div className="field-label"><span>Job ID</span><div className="print-field">{String(event.job_id ?? "")}</div></div>
+                <div className="field-label"><span>Test Mgr 1</span><div className="print-field">{manager1?.display_name ?? ""}</div></div>
+                <div className="field-label"><span>Test Mgr 2</span><div className="print-field">{manager2?.display_name ?? ""}</div></div>
+                <div className="field-label paper-span-full"><span>Conditions</span><div className="print-field">{((event.conditions as string[]) ?? []).join(", ")}</div></div>
+                <div className="field-label paper-span-full"><span>Employee</span><div className="print-field">{employee ? `${employee.last_name}, ${employee.first_name}` : ""}</div></div>
+                <div className="field-label"><span>Emp ID</span><div className="print-field">{employee?.employee_number ?? ""}</div></div>
+                <div className="field-label"><span>Notified</span><div className="print-field">{currentNotificationStatus}</div></div>
+                <div className="field-label"><span>Notification Method</span><div className="print-field">{notificationMethod?.label ?? ""}</div></div>
+              </div>
+            </section>
+
+            <section className="panel" style={{ padding: "1rem" }}>
+              <div className="eyebrow">Task Table</div>
+              <div style={{ overflowX: "auto", marginTop: "0.8rem" }}>
+                <table className="data-table form-table">
+                  <thead>
+                    <tr>
+                      <th>Task</th>
+                      <th>Test #</th>
+                      <th>Applicable For</th>
+                      <th>Pass-Fail</th>
+                      <th>Action Taken</th>
+                      <th>Comments</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.values(enabledTestsById).map((test) => {
+                      const row = ((event.rows as EventRow[]) ?? []).find((candidate) => String(candidate.client_enabled_test_id) === String(test.id));
+                      const qualifiesLabel = test.qualifies_engineer_check_ride
+                        ? "Engineer Annual / Check Ride"
+                        : test.qualifies_engineer_annual
+                          ? "Engineer Annual"
+                          : test.qualifies_conductor_annual
+                            ? "Conductor Annual"
+                            : null;
+                      const actionLabel = lookups.find((candidate) => candidate.id === String(row?.action_lookup_id ?? ""))?.label ?? "";
+
+                      return (
+                        <tr key={String(test.id)}>
+                          <td><div style={{ fontWeight: 700 }}>{String(test.task_name)}</div>{qualifiesLabel ? <div className="qualifying-flag">{qualifiesLabel}</div> : null}</td>
+                          <td>{String(test.test_number)}</td>
+                          <td>{String(test.applicability_label)}</td>
+                          <td>{String(row?.result ?? "")}</td>
+                          <td>{actionLabel}</td>
+                          <td>{String(row?.comments ?? "")}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className="text-muted">Certified copy hidden. Expand it if you need the read-only paper-style record.</div>
+        )}
+      </section>
 
       {canApplyAmendments && currentNotificationStatus !== "completed" ? (
         <section className="panel" style={{ padding: "1.25rem", display: "grid", gap: "1rem" }}>

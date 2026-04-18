@@ -282,6 +282,41 @@ button {
   letter-spacing: -0.05em;
 }
 
+.event-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.event-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 0.75rem;
+  min-width: min(100%, 340px);
+}
+
+.event-meta-card {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-muted) 52%, white 48%);
+}
+
+.event-meta-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.event-meta-value {
+  margin-top: 0.35rem;
+  font-weight: 700;
+}
+
 .form-shell {
   padding: 1.25rem;
   background:
@@ -446,7 +481,8 @@ button {
 
   .form-two-col,
   .form-three-col,
-  .paper-grid {
+  .paper-grid,
+  .event-meta-grid {
     grid-template-columns: 1fr;
   }
 
