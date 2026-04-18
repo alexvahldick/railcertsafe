@@ -8,11 +8,22 @@ function normalizeOrigin(value: string) {
   return value.replace(/\/+$/, "").toLowerCase();
 }
 
+function getExpectedOrigin(request: Request) {
+  const forwardedHost = request.headers.get("x-forwarded-host")?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.trim();
+
+  if (forwardedHost) {
+    return normalizeOrigin(`${forwardedProto || "https"}://${forwardedHost}`);
+  }
+
+  return normalizeOrigin(new URL(request.url).origin);
+}
+
 export function validateSameOrigin(request: Request) {
   const origin = request.headers.get("origin")?.trim() ?? "";
   const referer = request.headers.get("referer")?.trim() ?? "";
   const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase() ?? "";
-  const requestOrigin = normalizeOrigin(new URL(request.url).origin);
+  const requestOrigin = getExpectedOrigin(request);
 
   if (origin) {
     if (normalizeOrigin(origin) !== requestOrigin) {
