@@ -2,13 +2,19 @@ import { NextResponse } from "next/server";
 import { loadAppContext } from "@/lib/app-context";
 import { requireUser } from "@/lib/auth";
 import { createOrUpdateTestingEvent } from "@/lib/operations-server";
+import { NO_STORE_HEADERS, validateSameOrigin } from "@/lib/request-security";
 
 export async function POST(request: Request) {
+  const sameOriginError = validateSameOrigin(request);
+  if (sameOriginError) {
+    return sameOriginError;
+  }
+
   const user = await requireUser();
   const context = await loadAppContext();
 
   if (!context.schemaReady || !context.activeClient) {
-    return NextResponse.json({ error: "Client workspace is not ready." }, { status: 400 });
+    return NextResponse.json({ error: "Client workspace is not ready." }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const payload = (await request.json().catch(() => null)) as
@@ -41,7 +47,7 @@ export async function POST(request: Request) {
     | null;
 
   if (!payload?.employeeId || !payload.eventDate || !payload.rows) {
-    return NextResponse.json({ error: "Employee, date, and row data are required." }, { status: 400 });
+    return NextResponse.json({ error: "Employee, date, and row data are required." }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   try {
@@ -68,8 +74,8 @@ export async function POST(request: Request) {
       rows: payload.rows,
     });
 
-    return NextResponse.json({ data: { eventId } });
+    return NextResponse.json({ data: { eventId } }, { headers: NO_STORE_HEADERS });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not save testing event." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not save testing event." }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }

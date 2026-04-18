@@ -1,0 +1,35 @@
+import { NextResponse } from "next/server";
+
+export const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store",
+};
+
+function normalizeOrigin(value: string) {
+  return value.replace(/\/+$/, "").toLowerCase();
+}
+
+export function validateSameOrigin(request: Request) {
+  const origin = request.headers.get("origin")?.trim() ?? "";
+  const referer = request.headers.get("referer")?.trim() ?? "";
+  const requestOrigin = normalizeOrigin(new URL(request.url).origin);
+
+  if (origin) {
+    if (normalizeOrigin(origin) !== requestOrigin) {
+      return NextResponse.json({ error: "Cross-origin request blocked." }, { status: 403, headers: NO_STORE_HEADERS });
+    }
+    return null;
+  }
+
+  if (referer) {
+    try {
+      if (normalizeOrigin(new URL(referer).origin) !== requestOrigin) {
+        return NextResponse.json({ error: "Cross-origin request blocked." }, { status: 403, headers: NO_STORE_HEADERS });
+      }
+      return null;
+    } catch {
+      return NextResponse.json({ error: "Invalid referer." }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+  }
+
+  return NextResponse.json({ error: "Missing request origin." }, { status: 403, headers: NO_STORE_HEADERS });
+}

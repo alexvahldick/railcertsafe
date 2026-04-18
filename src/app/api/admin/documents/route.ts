@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/auth";
 import { DOCUMENT_STATUSES, mapLegacyStatus, type DocumentRecord, type DocumentStatus } from "@/lib/documents";
+import { NO_STORE_HEADERS, validateSameOrigin } from "@/lib/request-security";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
-
-const responseHeaders = {
-  "Cache-Control": "no-store",
-};
 
 function normalizeRecord(record: Record<string, unknown>): DocumentRecord {
   return {
@@ -35,7 +32,7 @@ export async function GET(request: Request) {
     .limit(100);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500, headers: responseHeaders });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: NO_STORE_HEADERS });
   }
 
   const normalized = (data ?? []).map((record) => normalizeRecord(record as Record<string, unknown>));
@@ -44,10 +41,15 @@ export async function GET(request: Request) {
       ? normalized.filter((record) => record.status === statusFilter)
       : normalized;
 
-  return NextResponse.json({ data: filtered }, { headers: responseHeaders });
+  return NextResponse.json({ data: filtered }, { headers: NO_STORE_HEADERS });
 }
 
 export async function PATCH(request: Request) {
+  const sameOriginError = validateSameOrigin(request);
+  if (sameOriginError) {
+    return sameOriginError;
+  }
+
   await requireAdminUser();
 
   const payload = (await request.json().catch(() => null)) as
@@ -55,11 +57,11 @@ export async function PATCH(request: Request) {
     | null;
 
   if (!payload?.id || !payload.status) {
-    return NextResponse.json({ error: "Missing id or status." }, { status: 400, headers: responseHeaders });
+    return NextResponse.json({ error: "Missing id or status." }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   if (!DOCUMENT_STATUSES.includes(payload.status)) {
-    return NextResponse.json({ error: "Invalid status." }, { status: 400, headers: responseHeaders });
+    return NextResponse.json({ error: "Invalid status." }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const supabase = getSupabaseServiceClient();
@@ -76,8 +78,8 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500, headers: responseHeaders });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: NO_STORE_HEADERS });
   }
 
-  return NextResponse.json({ data: normalizeRecord(data as Record<string, unknown>) }, { headers: responseHeaders });
+  return NextResponse.json({ data: normalizeRecord(data as Record<string, unknown>) }, { headers: NO_STORE_HEADERS });
 }

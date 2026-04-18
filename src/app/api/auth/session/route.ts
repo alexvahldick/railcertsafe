@@ -1,16 +1,18 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/auth";
-
-const responseHeaders = {
-  "Cache-Control": "no-store",
-};
+import { NO_STORE_HEADERS, validateSameOrigin } from "@/lib/request-security";
 
 export async function POST(request: Request) {
+  const sameOriginError = validateSameOrigin(request);
+  if (sameOriginError) {
+    return sameOriginError;
+  }
+
   const payload = (await request.json().catch(() => null)) as { accessToken?: string } | null;
 
   if (!payload?.accessToken) {
-    return NextResponse.json({ error: "Missing access token." }, { status: 400, headers: responseHeaders });
+    return NextResponse.json({ error: "Missing access token." }, { status: 400, headers: NO_STORE_HEADERS });
   }
 
   const store = await cookies();
@@ -23,11 +25,16 @@ export async function POST(request: Request) {
     priority: "high",
   });
 
-  return NextResponse.json({ ok: true }, { headers: responseHeaders });
+  return NextResponse.json({ ok: true }, { headers: NO_STORE_HEADERS });
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const sameOriginError = validateSameOrigin(request);
+  if (sameOriginError) {
+    return sameOriginError;
+  }
+
   const store = await cookies();
   store.delete(AUTH_COOKIE_NAME);
-  return NextResponse.json({ ok: true }, { headers: responseHeaders });
+  return NextResponse.json({ ok: true }, { headers: NO_STORE_HEADERS });
 }
