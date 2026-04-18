@@ -29,13 +29,20 @@ export function LoginForm() {
       return;
     }
 
-    await fetch("/api/auth/session", {
+    const sessionResponse = await fetch("/api/auth/session", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ accessToken: data.session.access_token }),
     });
+
+    if (!sessionResponse.ok) {
+      const payload = (await sessionResponse.json().catch(() => null)) as { error?: string } | null;
+      setBusy(false);
+      setMessage(payload?.error ?? "Could not establish a secure session.");
+      return;
+    }
 
     router.replace("/dashboard");
     router.refresh();

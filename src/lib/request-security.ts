@@ -11,6 +11,7 @@ function normalizeOrigin(value: string) {
 export function validateSameOrigin(request: Request) {
   const origin = request.headers.get("origin")?.trim() ?? "";
   const referer = request.headers.get("referer")?.trim() ?? "";
+  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase() ?? "";
   const requestOrigin = normalizeOrigin(new URL(request.url).origin);
 
   if (origin) {
@@ -29,6 +30,10 @@ export function validateSameOrigin(request: Request) {
     } catch {
       return NextResponse.json({ error: "Invalid referer." }, { status: 400, headers: NO_STORE_HEADERS });
     }
+  }
+
+  if (fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none") {
+    return null;
   }
 
   return NextResponse.json({ error: "Missing request origin." }, { status: 403, headers: NO_STORE_HEADERS });
