@@ -63,6 +63,24 @@ button {
   min-height: 100vh;
 }
 
+.authenticated-shell {
+  padding: 1rem 0 2rem;
+}
+
+.authenticated-shell-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 280px minmax(0, 1fr);
+  align-items: start;
+}
+
+.authenticated-content,
+.operations-page-stack,
+.operations-dashboard {
+  display: grid;
+  gap: 1rem;
+}
+
 .container {
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
@@ -227,6 +245,10 @@ button {
   color: #765022;
 }
 
+.operations-stat-card .status-pill {
+  margin-top: 0.6rem;
+}
+
 .status-validated {
   color: var(--success);
 }
@@ -290,6 +312,303 @@ button {
   align-items: flex-start;
 }
 
+.shell-rail {
+  position: sticky;
+  top: 1rem;
+  padding: 1rem;
+  display: grid;
+  gap: 1rem;
+  background:
+    linear-gradient(180deg, rgba(16, 35, 43, 0.98), rgba(24, 54, 66, 0.96)),
+    linear-gradient(90deg, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 100%);
+  color: #eef5f7;
+}
+
+.shell-brand-block {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.shell-brand-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.shell-brand-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.shell-brand-subtitle,
+.shell-context-user {
+  color: rgba(238, 245, 247, 0.72);
+  font-size: 0.9rem;
+}
+
+.shell-context-card {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.9rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.shell-context-client {
+  font-weight: 700;
+}
+
+.shell-context-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.2rem;
+}
+
+.shell-nav-group {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.shell-nav-group-title {
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(238, 245, 247, 0.62);
+  font-weight: 800;
+}
+
+.shell-nav-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.shell-nav-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  color: #eef5f7;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.shell-nav-link-primary {
+  background: rgba(20, 90, 101, 0.34);
+  border-color: rgba(151, 207, 214, 0.26);
+}
+
+.shell-signout {
+  padding-top: 0.2rem;
+}
+
+.shell-signout button {
+  width: 100%;
+}
+
+.operations-hero,
+.workflow-hero {
+  padding: 1.5rem;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+  align-items: start;
+}
+
+.operations-hero-text,
+.workflow-hero-text {
+  max-width: 60rem;
+  margin: 0.75rem 0 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.operations-mode-card,
+.workflow-sequence-card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface-muted) 68%, white 32%);
+  border: 1px solid var(--border);
+}
+
+.operations-mode-kicker,
+.workflow-sequence-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.operations-mode-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.operations-mode-body {
+  color: var(--text-muted);
+}
+
+.workflow-sequence-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text-muted);
+}
+
+.operations-mode-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.operations-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.operations-grid-four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.operations-grid-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.operations-grid-split {
+  grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.8fr);
+}
+
+.operations-card {
+  padding: 1.2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.operations-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  flex-wrap: wrap;
+}
+
+.operations-card-title {
+  margin: 0.35rem 0 0;
+  font-size: 1.25rem;
+  line-height: 1.08;
+}
+
+.operations-stat-card {
+  padding: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.operations-stat-warning {
+  background: linear-gradient(180deg, rgba(255, 248, 238, 0.96), rgba(252, 244, 227, 0.98));
+}
+
+.operations-stat-danger {
+  background: linear-gradient(180deg, rgba(255, 244, 241, 0.96), rgba(252, 239, 233, 0.98));
+}
+
+.operations-stat-success {
+  background: linear-gradient(180deg, rgba(242, 249, 245, 0.96), rgba(236, 246, 240, 0.98));
+}
+
+.operations-stat-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.operations-stat-value {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+}
+
+.operations-stat-body {
+  color: var(--text-muted);
+}
+
+.workflow-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.workflow-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-muted) 58%, white 42%);
+  border: 1px solid var(--border);
+}
+
+.workflow-row-title {
+  font-weight: 700;
+}
+
+.workflow-row-meta {
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+.readiness-band {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, white 30%);
+}
+
+.readiness-band:last-child {
+  border-bottom: 0;
+}
+
+.readiness-label {
+  color: var(--text-muted);
+}
+
+.operations-filter-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.7fr);
+}
+
+.operations-list-meta {
+  color: var(--text-muted);
+}
+
+.operations-table-link {
+  font-weight: 700;
+  color: var(--accent-strong);
+}
+
+.operations-table th {
+  white-space: nowrap;
+}
+
 .event-meta-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(140px, 1fr));
@@ -333,6 +652,71 @@ button {
   gap: 0.8rem;
   border: 1px solid var(--border-strong);
   background: rgba(255, 255, 255, 0.78);
+}
+
+.workflow-stepper {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  padding: 0 0.95rem 0.1rem;
+}
+
+.workflow-step {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.8rem 0.85rem;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.68);
+  text-align: left;
+  min-height: 70px;
+}
+
+.workflow-step-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, white 91%);
+}
+
+.workflow-step-complete .workflow-step-index {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+
+.workflow-step-index {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  background: white;
+  font-weight: 800;
+  flex: 0 0 28px;
+}
+
+.workflow-step-label {
+  display: block;
+  font-weight: 800;
+}
+
+.workflow-step-note {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.workflow-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem 1rem;
+  padding: 0 0.95rem;
+  color: var(--text-muted);
+}
+
+.workflow-actions-row {
+  justify-content: flex-end;
 }
 
 .paper-header {
@@ -620,9 +1004,9 @@ button {
   min-height: 120px;
 }
 
-.paper-actions-row {
-  padding: 0 0.95rem 0.95rem;
-}
+  .paper-actions-row {
+    padding: 0 0.95rem 0.95rem;
+  }
 
 @media (max-width: 760px) {
   .container {
@@ -632,7 +1016,15 @@ button {
   .form-two-col,
   .form-three-col,
   .paper-grid,
-  .event-meta-grid {
+  .event-meta-grid,
+  .operations-grid-four,
+  .operations-grid-three,
+  .operations-grid-split,
+  .operations-filter-grid,
+  .workflow-stepper,
+  .operations-hero,
+  .workflow-hero,
+  .authenticated-shell-grid {
     grid-template-columns: 1fr;
   }
 
@@ -669,5 +1061,9 @@ button {
   .paper-header-stack {
     width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shell-rail {
+    position: static;
   }
 }

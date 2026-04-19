@@ -19,13 +19,24 @@ export default async function NewTestingEventPage() {
   const lookupList = lookups as Array<{ id: string; label: string; lookup_type: string }>;
 
   return (
-    <div style={{ display: "grid", gap: "1rem" }}>
-      <section className="panel" style={{ padding: "1.5rem" }}>
-        <div className="eyebrow">Submit New Testing</div>
-        <h1 className="title-lg">Transfer the paper event into the certified electronic record</h1>
-        <p className="text-muted" style={{ margin: "0.75rem 0 0", maxWidth: "54rem" }}>
-          The browser form mirrors the one-page field form. Save drafts freely, then use submit only when the transfer from the paper source record is complete and ready to be locked.
-        </p>
+    <div className="operations-page-stack">
+      <section className="panel workflow-hero">
+        <div>
+          <div className="eyebrow">Manager Execution</div>
+          <h1 className="title-lg">Transfer a paper testing event into the certified record</h1>
+          <p className="workflow-hero-text">
+            The workflow is intentionally sequenced: identify the event, confirm the employee and notification details, mark only the observed tests, then certify when the paper transfer is complete.
+          </p>
+        </div>
+        <div className="workflow-sequence-card">
+          <div className="workflow-sequence-title">Entry Sequence</div>
+          <ol className="workflow-sequence-list">
+            <li>Header and operating context</li>
+            <li>Employee and notification details</li>
+            <li>Observed tests and failure actions</li>
+            <li>Record notes and final certification</li>
+          </ol>
+        </div>
       </section>
 
       <TestingEventForm

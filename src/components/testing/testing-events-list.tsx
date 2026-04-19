@@ -17,14 +17,26 @@ type Props = {
   events: EventSummary[];
 };
 
+function statusClass(status: string) {
+  if (["review_hold_employee_status", "correction_requested"].includes(status)) return "status-needs_review";
+  if (status === "submitted_notification_pending") return "status-pending";
+  if (status === "amended_effective") return "status-received";
+  if (status === "submitted_complete") return "status-validated";
+  return "status-received";
+}
+
+function actionLabel(event: EventSummary) {
+  if (event.status === "review_hold_employee_status") return "Review hold";
+  if (event.status === "correction_requested") return "Apply amendment";
+  if (event.status === "submitted_notification_pending") return "Complete notification";
+  return "Open record";
+}
+
 export function TestingEventsList({ events }: Props) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const statuses = useMemo(
-    () => Array.from(new Set(events.map((event) => event.status))).sort(),
-    [events],
-  );
+  const statuses = useMemo(() => Array.from(new Set(events.map((event) => event.status))).sort(), [events]);
 
   const filteredEvents = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -32,17 +44,22 @@ export function TestingEventsList({ events }: Props) {
     return events.filter((event) => {
       const matchesQuery =
         !needle ||
-        `${event.controlNumber} ${event.employeeLabel} ${event.notificationStatus} ${event.status}`
-          .toLowerCase()
-          .includes(needle);
+        `${event.controlNumber} ${event.employeeLabel} ${event.notificationStatus} ${event.status}`.toLowerCase().includes(needle);
       const matchesStatus = statusFilter === "all" || event.status === statusFilter;
       return matchesQuery && matchesStatus;
     });
   }, [events, query, statusFilter]);
 
   return (
-    <section className="panel" style={{ padding: "1rem", display: "grid", gap: "1rem" }}>
-      <div className="form-two-col">
+    <section className="panel operations-card">
+      <div className="operations-card-header">
+        <div>
+          <div className="eyebrow">Search & Filter</div>
+          <h2 className="operations-card-title">Testing records and exception status</h2>
+        </div>
+      </div>
+
+      <div className="operations-filter-grid">
         <label className="field-label">
           <span>Search</span>
           <input
@@ -54,7 +71,7 @@ export function TestingEventsList({ events }: Props) {
         </label>
         <label className="field-label">
           <span>Status</span>
-          <select className="field-select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <select className="field-select" onChange={(event) => setStatusFilter(event.target.value)} value={statusFilter}>
             <option value="all">All statuses</option>
             {statuses.map((status) => (
               <option key={status} value={status}>
@@ -65,12 +82,12 @@ export function TestingEventsList({ events }: Props) {
         </label>
       </div>
 
-      <div className="text-muted">
+      <div className="operations-list-meta">
         Showing {filteredEvents.length} of {events.length} testing events
       </div>
 
       <div style={{ overflowX: "auto" }}>
-        <table className="data-table">
+        <table className="data-table operations-table">
           <thead>
             <tr>
               <th>Control #</th>
@@ -79,23 +96,31 @@ export function TestingEventsList({ events }: Props) {
               <th>Notification</th>
               <th>Employee</th>
               <th>Rows</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {filteredEvents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-muted">No testing events match the current filters.</td>
+                <td className="text-muted" colSpan={7}>No testing events match the current filters.</td>
               </tr>
-            ) : filteredEvents.map((event) => (
-              <tr key={event.id}>
-                <td><Link href={`/testing/${event.id}`}>{event.controlNumber}</Link></td>
-                <td>{event.eventDate}</td>
-                <td>{event.status.replace(/_/g, " ")}</td>
-                <td>{event.notificationStatus}</td>
-                <td>{event.employeeLabel}</td>
-                <td>{event.rowCount}</td>
-              </tr>
-            ))}
+            ) : (
+              filteredEvents.map((event) => (
+                <tr key={event.id}>
+                  <td>
+                    <Link className="operations-table-link" href={`/testing/${event.id}`}>
+                      {event.controlNumber}
+                    </Link>
+                  </td>
+                  <td>{event.eventDate}</td>
+                  <td><span className={`status-pill ${statusClass(event.status)}`}>{event.status.replace(/_/g, " ")}</span></td>
+                  <td><span className={`status-pill ${event.notificationStatus === "completed" ? "status-validated" : "status-pending"}`}>{event.notificationStatus}</span></td>
+                  <td>{event.employeeLabel}</td>
+                  <td>{event.rowCount}</td>
+                  <td>{actionLabel(event)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

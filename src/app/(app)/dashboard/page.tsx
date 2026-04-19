@@ -1,7 +1,7 @@
 import { SetupPanel } from "@/components/dashboard/setup-panel";
 import { OpsDashboard } from "@/components/dashboard/ops-dashboard";
 import { loadAppContext } from "@/lib/app-context";
-import { getDashboardData } from "@/lib/operations-server";
+import { getDashboardData, listTestingEvents } from "@/lib/operations-server";
 
 export default async function DashboardPage() {
   const context = await loadAppContext();
@@ -34,7 +34,24 @@ export default async function DashboardPage() {
     );
   }
 
-  const dashboard = await getDashboardData(context.activeClient.clientId);
+  const [dashboard, events] = await Promise.all([
+    getDashboardData(context.activeClient.clientId),
+    listTestingEvents(context.activeClient.clientId),
+  ]);
 
-  return <OpsDashboard clientName={context.activeClient.clientName} dashboard={dashboard} />;
+  const reviewCount = events.filter((event) =>
+    ["review_hold_employee_status", "correction_requested", "submitted_notification_pending"].includes(String(event.status)),
+  ).length;
+  const amendedCount = events.filter((event) => String(event.status) === "amended_effective").length;
+
+  return (
+    <OpsDashboard
+      clientName={context.activeClient.clientName}
+      dashboard={dashboard}
+      isAdmin={context.isMasterAdmin || context.activeClient.role === "client_administrator"}
+      reviewCount={reviewCount}
+      roleLabel={context.isMasterAdmin ? "master_administrator" : context.activeClient.role}
+      amendedCount={amendedCount}
+    />
+  );
 }

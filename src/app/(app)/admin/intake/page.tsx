@@ -31,15 +31,36 @@ export default async function AdminIntakePage() {
   }
 
   return (
-    <div style={{ display: "grid", gap: "1rem" }}>
-      <section className="panel" style={{ padding: "1.5rem" }}>
-        <div className="eyebrow">Review Queue</div>
-        <h1 className="title-lg">Held events, notification follow-up, and correction requests</h1>
+    <div className="operations-page-stack">
+      <section className="panel workflow-hero">
+        <div>
+          <div className="eyebrow">Administrator Review</div>
+          <h1 className="title-lg">Held events, notification follow-up, and correction requests</h1>
+          <p className="workflow-hero-text">
+            Use this queue to resolve employee-status holds, complete notification follow-up, and apply amendments without disturbing the original certified record.
+          </p>
+        </div>
+        <div className="workflow-sequence-card">
+          <div className="workflow-sequence-title">Queue Priorities</div>
+          <ol className="workflow-sequence-list">
+            <li>Clear records blocking certification flow</li>
+            <li>Close pending notification items</li>
+            <li>Apply approved amendments with audit context</li>
+            <li>Reduce audit-facing exceptions</li>
+          </ol>
+        </div>
       </section>
 
-      <section className="panel" style={{ padding: "0.5rem 0.5rem 1rem" }}>
+      <section className="panel operations-card">
+        <div className="operations-card-header">
+          <div>
+            <div className="eyebrow">Active Queue</div>
+            <h2 className="operations-card-title">Exception management and compliance follow-up</h2>
+          </div>
+          <span className={`status-pill ${reviewEvents.length > 0 ? "status-needs_review" : "status-validated"}`}>{reviewEvents.length} open</span>
+        </div>
         <div style={{ overflowX: "auto" }}>
-          <table className="data-table">
+          <table className="data-table operations-table">
             <thead>
               <tr>
                 <th>Control #</th>
@@ -57,9 +78,9 @@ export default async function AdminIntakePage() {
                 </tr>
               ) : reviewEvents.map((event) => (
                 <tr key={String(event.id)}>
-                  <td><Link href={`/testing/${String(event.id)}`}>{String(event.control_number)}</Link></td>
+                  <td><Link className="operations-table-link" href={`/testing/${String(event.id)}`}>{String(event.control_number)}</Link></td>
                   <td>{String(event.event_date)}</td>
-                  <td>{String(event.status).replace(/_/g, " ")}</td>
+                  <td><span className={`status-pill ${String(event.status) === "submitted_notification_pending" ? "status-pending" : "status-needs_review"}`}>{String(event.status).replace(/_/g, " ")}</span></td>
                   <td>{employeesById[String(event.employee_id)] ?? String(event.employee_id)}</td>
                   <td>{queueActionLabel(event)}</td>
                   <td>{(event.rows as { result: string | null }[]).filter((row) => Boolean(row.result)).length}</td>

@@ -93,6 +93,13 @@ export function TestingEventForm(props: Props) {
   const [rows, setRows] = useState<Record<string, RowDraft>>(() => buildInitialRows(enabledTests, existingEvent));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const steps = [
+    { id: "header", label: "Header", note: "Event context and test managers" },
+    { id: "employee", label: "Employee", note: "Employee and notification details" },
+    { id: "tests", label: "Observed Tests", note: "Mark only the tests actually observed" },
+    { id: "notes", label: "Finalize", note: "Notes, draft save, and certification" },
+  ] as const;
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   const filteredEmployees = useMemo(() => {
     const needle = employeeQuery.trim().toLowerCase();
@@ -191,6 +198,14 @@ export function TestingEventForm(props: Props) {
     window.location.href = `/testing/${payload.data.eventId}`;
   }
 
+  const completedRowCount = enabledTests.filter((test) => Boolean(rows[test.id]?.result)).length;
+  const stepCompletion = [
+    Boolean(eventDate && locationId && manager1Id),
+    Boolean(employeeId && dutyLookupId),
+    completedRowCount > 0,
+    Boolean(generalComments.trim()) || completedRowCount > 0,
+  ];
+
   return (
     <section className="panel form-shell paper-form-shell paper-form-document">
       <div className="paper-document-band">
@@ -211,213 +226,239 @@ export function TestingEventForm(props: Props) {
             </div>
           </div>
         </div>
-
-        <div className="paper-section-title">Event Header</div>
-        <div className="paper-grid paper-grid-tight paper-grid-form paper-ledger-grid">
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Date</span>
-            <input className="field-input form-paper-input" onChange={(event) => setEventDate(event.target.value)} required type="date" value={eventDate} />
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Time</span>
-            <input className="field-input form-paper-input" onChange={(event) => setEventTime(event.target.value)} placeholder="1530" value={eventTime} />
-          </label>
-          <label className="paper-field-cell paper-span-full">
-            <span className="paper-field-caption">Location</span>
-            <select className="field-select form-paper-input" onChange={(event) => setLocationId(event.target.value)} required value={locationId}>
-              <option value="">Select a location</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Sub-location</span>
-            <input className="field-input form-paper-input" onChange={(event) => setSubLocation(event.target.value)} value={subLocation} />
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Engine #</span>
-            <input className="field-input form-paper-input" onChange={(event) => setEngineNumber(event.target.value)} value={engineNumber} />
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Job ID</span>
-            <input className="field-input form-paper-input" onChange={(event) => setJobId(event.target.value)} value={jobId} />
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Test Mgr 1</span>
-            <select className="field-select form-paper-input" onChange={(event) => setManager1Id(event.target.value)} required value={manager1Id}>
-              <option value="">Select manager</option>
-              {managers.map((manager) => (
-                <option key={manager.id} value={manager.id}>
-                  {manager.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Test Mgr 2</span>
-            <select className="field-select form-paper-input" onChange={(event) => setManager2Id(event.target.value)} value={manager2Id}>
-              <option value="">Optional</option>
-              {managers.map((manager) => (
-                <option key={manager.id} value={manager.id}>
-                  {manager.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="paper-field-cell paper-span-full paper-box-field">
-            <span className="paper-field-caption">Conditions</span>
-            <div className="condition-grid">
-              {CONDITION_OPTIONS.map((condition) => {
-                const active = conditions.includes(condition);
-                return (
-                  <label className={`paper-check-option${active ? " paper-check-option-active" : ""}`} key={condition}>
-                    <input checked={active} onChange={() => toggleCondition(condition)} type="checkbox" />
-                    <span aria-hidden="true" className="paper-check-box" />
-                    <span>{labelForCondition(condition)}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Method</span>
-            <select className="field-select form-paper-input" onChange={(event) => setMethodLookupId(event.target.value)} required value={methodLookupId}>
-              <option value="">Select method</option>
-              {methods.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Obs Type</span>
-            <select className="field-select form-paper-input" onChange={(event) => setObservationTypeLookupId(event.target.value)} required value={observationTypeLookupId}>
-              <option value="">Select type</option>
-              {observationTypes.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="workflow-stepper">
+          {steps.map((step, index) => (
+            <button
+              className={`workflow-step${index === currentStepIndex ? " workflow-step-active" : ""}${stepCompletion[index] ? " workflow-step-complete" : ""}`}
+              key={step.id}
+              onClick={() => setCurrentStepIndex(index)}
+              type="button"
+            >
+              <span className="workflow-step-index">{index + 1}</span>
+              <span>
+                <span className="workflow-step-label">{step.label}</span>
+                <span className="workflow-step-note">{step.note}</span>
+              </span>
+            </button>
+          ))}
         </div>
 
-        <div className="paper-section-title">Employee</div>
-        <div className="paper-grid paper-grid-tight paper-grid-form paper-ledger-grid">
-          <label className="paper-field-cell paper-span-full">
-            <span className="paper-field-caption">Employee search</span>
-            <input
-              className="field-input form-paper-input"
-              onChange={(event) => {
-                const value = event.target.value;
-                setEmployeeQuery(value);
-                const needle = value.trim().toLowerCase();
-                if (!needle) {
-                  setEmployeeId("");
-                  return;
-                }
-                const firstMatch = employees.find((employee) =>
-                  `${employee.last_name} ${employee.first_name} ${employee.employee_number}`.toLowerCase().includes(needle),
-                );
-                if (firstMatch) {
-                  setEmployeeId(firstMatch.id);
-                }
-              }}
-              placeholder="Start typing name or ID"
-              value={employeeQuery}
-            />
-          </label>
-          {employeeQuery.trim() ? (
-            <div className="paper-field-cell paper-span-full">
-              <span className="paper-field-caption">Matching employees</span>
-              <div className="search-results paper-match-grid">
-                {filteredEmployees.length === 0 ? (
-                  <div className="search-result-empty">No employee matches that search.</div>
-                ) : (
-                  filteredEmployees.map((employee) => {
-                    const label = `${employee.last_name}, ${employee.first_name} (${employee.employee_number})${employee.status !== "active" ? " - inactive" : ""}`;
+        {currentStepIndex === 0 ? (
+          <>
+            <div className="paper-section-title">Event Header</div>
+            <div className="paper-grid paper-grid-tight paper-grid-form paper-ledger-grid">
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Date</span>
+                <input className="field-input form-paper-input" onChange={(event) => setEventDate(event.target.value)} required type="date" value={eventDate} />
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Time</span>
+                <input className="field-input form-paper-input" onChange={(event) => setEventTime(event.target.value)} placeholder="1530" value={eventTime} />
+              </label>
+              <label className="paper-field-cell paper-span-full">
+                <span className="paper-field-caption">Location</span>
+                <select className="field-select form-paper-input" onChange={(event) => setLocationId(event.target.value)} required value={locationId}>
+                  <option value="">Select a location</option>
+                  {locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Sub-location</span>
+                <input className="field-input form-paper-input" onChange={(event) => setSubLocation(event.target.value)} value={subLocation} />
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Engine #</span>
+                <input className="field-input form-paper-input" onChange={(event) => setEngineNumber(event.target.value)} value={engineNumber} />
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Job ID</span>
+                <input className="field-input form-paper-input" onChange={(event) => setJobId(event.target.value)} value={jobId} />
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Test Mgr 1</span>
+                <select className="field-select form-paper-input" onChange={(event) => setManager1Id(event.target.value)} required value={manager1Id}>
+                  <option value="">Select manager</option>
+                  {managers.map((manager) => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Test Mgr 2</span>
+                <select className="field-select form-paper-input" onChange={(event) => setManager2Id(event.target.value)} value={manager2Id}>
+                  <option value="">Optional</option>
+                  {managers.map((manager) => (
+                    <option key={manager.id} value={manager.id}>
+                      {manager.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="paper-field-cell paper-span-full paper-box-field">
+                <span className="paper-field-caption">Conditions</span>
+                <div className="condition-grid">
+                  {CONDITION_OPTIONS.map((condition) => {
+                    const active = conditions.includes(condition);
                     return (
-                      <button
-                        className={`search-result${employee.id === employeeId ? " search-result-active" : ""}`}
-                        key={employee.id}
-                        onClick={() => selectEmployee(employee.id)}
-                        type="button"
-                      >
-                        {label}
-                      </button>
+                      <label className={`paper-check-option${active ? " paper-check-option-active" : ""}`} key={condition}>
+                        <input checked={active} onChange={() => toggleCondition(condition)} type="checkbox" />
+                        <span aria-hidden="true" className="paper-check-box" />
+                        <span>{labelForCondition(condition)}</span>
+                      </label>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </div>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Method</span>
+                <select className="field-select form-paper-input" onChange={(event) => setMethodLookupId(event.target.value)} required value={methodLookupId}>
+                  <option value="">Select method</option>
+                  {methods.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Obs Type</span>
+                <select className="field-select form-paper-input" onChange={(event) => setObservationTypeLookupId(event.target.value)} required value={observationTypeLookupId}>
+                  <option value="">Select type</option>
+                  {observationTypes.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          ) : null}
-          <label className="paper-field-cell paper-span-full">
-            <span className="paper-field-caption">Employee</span>
-            <select className="field-select form-paper-input" onChange={(event) => selectEmployee(event.target.value)} required value={employeeId}>
-              <option value="">Select employee</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.last_name}, {employee.first_name} ({employee.employee_number})
-                  {employee.status !== "active" ? " - inactive" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Emp ID</span>
-            <input className="field-input form-paper-input" disabled value={selectedEmployee?.employee_number ?? ""} />
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Emp Duties</span>
-            <select className="field-select form-paper-input" onChange={(event) => setDutyLookupId(event.target.value)} required value={dutyLookupId}>
-              <option value="">Select duty</option>
-              {duties.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Notified</span>
-            <select className="field-select form-paper-input" onChange={(event) => setNotificationStatus(event.target.value as "pending" | "completed")} value={notificationStatus}>
-              <option value="pending">Pending</option>
-              <option value="completed">Completed</option>
-            </select>
-          </label>
-          <label className="paper-field-cell">
-            <span className="paper-field-caption">Notification Method</span>
-            <select className="field-select form-paper-input" onChange={(event) => setNotificationMethodLookupId(event.target.value)} value={notificationMethodLookupId}>
-              <option value="">Optional</option>
-              {notificationMethods.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+          </>
+        ) : null}
 
-        <div className="paper-section-title">Observed Tests</div>
-        <div className="paper-table-shell">
-          <table className="data-table form-table paper-table paper-tests-table">
-            <thead>
-              <tr>
-                <th>Task</th>
-                <th>Test #</th>
-                <th>Applicable For</th>
-                <th>Pass / Fail</th>
-                <th>Action Taken</th>
-                <th>Comments</th>
-              </tr>
-            </thead>
-            <tbody>
-              {enabledTests.map((test) => {
-                const row = rows[test.id];
+        {currentStepIndex === 1 ? (
+          <>
+            <div className="paper-section-title">Employee</div>
+            <div className="paper-grid paper-grid-tight paper-grid-form paper-ledger-grid">
+              <label className="paper-field-cell paper-span-full">
+                <span className="paper-field-caption">Employee search</span>
+                <input
+                  className="field-input form-paper-input"
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setEmployeeQuery(value);
+                    const needle = value.trim().toLowerCase();
+                    if (!needle) {
+                      setEmployeeId("");
+                      return;
+                    }
+                    const firstMatch = employees.find((employee) =>
+                      `${employee.last_name} ${employee.first_name} ${employee.employee_number}`.toLowerCase().includes(needle),
+                    );
+                    if (firstMatch) {
+                      setEmployeeId(firstMatch.id);
+                    }
+                  }}
+                  placeholder="Start typing name or ID"
+                  value={employeeQuery}
+                />
+              </label>
+              {employeeQuery.trim() ? (
+                <div className="paper-field-cell paper-span-full">
+                  <span className="paper-field-caption">Matching employees</span>
+                  <div className="search-results paper-match-grid">
+                    {filteredEmployees.length === 0 ? (
+                      <div className="search-result-empty">No employee matches that search.</div>
+                    ) : (
+                      filteredEmployees.map((employee) => {
+                        const label = `${employee.last_name}, ${employee.first_name} (${employee.employee_number})${employee.status !== "active" ? " - inactive" : ""}`;
+                        return (
+                          <button
+                            className={`search-result${employee.id === employeeId ? " search-result-active" : ""}`}
+                            key={employee.id}
+                            onClick={() => selectEmployee(employee.id)}
+                            type="button"
+                          >
+                            {label}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              ) : null}
+              <label className="paper-field-cell paper-span-full">
+                <span className="paper-field-caption">Employee</span>
+                <select className="field-select form-paper-input" onChange={(event) => selectEmployee(event.target.value)} required value={employeeId}>
+                  <option value="">Select employee</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.last_name}, {employee.first_name} ({employee.employee_number})
+                      {employee.status !== "active" ? " - inactive" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Emp ID</span>
+                <input className="field-input form-paper-input" disabled value={selectedEmployee?.employee_number ?? ""} />
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Emp Duties</span>
+                <select className="field-select form-paper-input" onChange={(event) => setDutyLookupId(event.target.value)} required value={dutyLookupId}>
+                  <option value="">Select duty</option>
+                  {duties.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Notified</span>
+                <select className="field-select form-paper-input" onChange={(event) => setNotificationStatus(event.target.value as "pending" | "completed")} value={notificationStatus}>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </label>
+              <label className="paper-field-cell">
+                <span className="paper-field-caption">Notification Method</span>
+                <select className="field-select form-paper-input" onChange={(event) => setNotificationMethodLookupId(event.target.value)} value={notificationMethodLookupId}>
+                  <option value="">Optional</option>
+                  {notificationMethods.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </>
+        ) : null}
+
+        {currentStepIndex === 2 ? (
+          <>
+            <div className="paper-section-title">Observed Tests</div>
+            <div className="paper-table-shell">
+              <table className="data-table form-table paper-table paper-tests-table">
+                <thead>
+                  <tr>
+                    <th>Task</th>
+                    <th>Test #</th>
+                    <th>Applicable For</th>
+                    <th>Pass / Fail</th>
+                    <th>Action Taken</th>
+                    <th>Comments</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {enabledTests.map((test) => {
+                    const row = rows[test.id];
                 const qualifiesLabel = test.qualifies_engineer_check_ride
                   ? "Engineer Annual / Check Ride"
                   : test.qualifies_engineer_annual
@@ -426,8 +467,8 @@ export function TestingEventForm(props: Props) {
                       ? "Conductor Annual"
                       : null;
 
-                return (
-                  <tr key={test.id}>
+                    return (
+                      <tr key={test.id}>
                     <td>
                       <div className="paper-task-name">{test.task_name}</div>
                       {qualifiesLabel ? <div className="qualifying-flag">{qualifiesLabel}</div> : null}
@@ -476,20 +517,39 @@ export function TestingEventForm(props: Props) {
                         value={row.comments}
                       />
                     </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
 
-        <div className="paper-section-title">Record Notes</div>
-        <label className="paper-field-cell paper-notes-cell">
-          <span className="paper-field-caption">Comments</span>
-          <textarea className="field-textarea form-paper-textarea paper-notes-area" onChange={(event) => setGeneralComments(event.target.value)} value={generalComments} />
-        </label>
+        {currentStepIndex === 3 ? (
+          <>
+            <div className="paper-section-title">Record Notes</div>
+            <label className="paper-field-cell paper-notes-cell">
+              <span className="paper-field-caption">Comments</span>
+              <textarea className="field-textarea form-paper-textarea paper-notes-area" onChange={(event) => setGeneralComments(event.target.value)} value={generalComments} />
+            </label>
+            <div className="workflow-summary-strip">
+              <div><strong>{completedRowCount}</strong> test rows marked</div>
+              <div><strong>{notificationStatus}</strong> notification state</div>
+              <div><strong>{selectedEmployee ? selectedEmployee.last_name : "No employee"}</strong></div>
+            </div>
+          </>
+        ) : null}
 
-        <div className="button-row paper-actions-row">
+        <div className="button-row paper-actions-row workflow-actions-row">
+          <button className="button-ghost" disabled={busy || currentStepIndex === 0} onClick={() => setCurrentStepIndex((current) => Math.max(0, current - 1))} type="button">
+            Previous Step
+          </button>
+          {currentStepIndex < steps.length - 1 ? (
+            <button className="button-secondary" disabled={busy} onClick={() => setCurrentStepIndex((current) => Math.min(steps.length - 1, current + 1))} type="button">
+              Next Step
+            </button>
+          ) : null}
           <button className="button-secondary" disabled={busy} onClick={() => void persist("draft")} type="button">
             {busy ? "Saving..." : existingEvent ? "Save Draft Changes" : "Save Draft"}
           </button>

@@ -23,13 +23,24 @@ export default async function TestingIndexPage() {
   );
 
   return (
-    <div style={{ display: "grid", gap: "1rem" }}>
-      <section className="panel" style={{ padding: "1.5rem" }}>
-        <div className="eyebrow">All Testing</div>
-        <h1 className="title-lg">Recorded testing events</h1>
-        <p className="text-muted" style={{ margin: "0.75rem 0 0", maxWidth: "48rem" }}>
-          This view shows all testing events for the active client, including drafts, submitted events, amended effective records, and items currently in review.
-        </p>
+    <div className="operations-page-stack">
+      <section className="panel workflow-hero">
+        <div>
+          <div className="eyebrow">Testing Records</div>
+          <h1 className="title-lg">Recorded testing events</h1>
+          <p className="workflow-hero-text">
+            Use this view for event history, certification support, pending notification follow-up, and amendment-aware review of current effective records.
+          </p>
+        </div>
+        <div className="workflow-sequence-card">
+          <div className="workflow-sequence-title">Use This View To</div>
+          <ol className="workflow-sequence-list">
+            <li>Find a control number quickly</li>
+            <li>Review record status and notification state</li>
+            <li>Open amendment history and audit context</li>
+            <li>Move to review actions when exceptions exist</li>
+          </ol>
+        </div>
       </section>
 
       <TestingEventsList
